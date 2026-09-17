@@ -175,15 +175,41 @@ CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe"</code></p></li>
 <table>
 <tr><th class="w-key">キー</th><th>動作</th></tr>
 <tr><td class="w-key">Space</td><td>スタートの合図（中央ボタンとフォースセンサの両方に入る）</td></tr>
-<tr><td class="w-key">R</td><td>走行体を初期姿勢へ戻す（ボトルも設定した位置へ立て直す）</td></tr>
+<tr><td class="w-key">R</td><td>走行体を<b>開始位置</b>へ戻す（ボトルも設定した位置へ立て直す）</td></tr>
+<tr><td class="w-key">P</td><td>配置モード。矢印キーで走行体を動かして開始位置を決める</td></tr>
 <tr><td class="w-key">Tab</td><td>視点モードの切り替え</td></tr>
 <tr><td class="w-key">F / G</td><td>走行体に寄る / コース全体を映す</td></tr>
 </table>
-<p>パネル（HUD）からは、<b>コースの L/R 切り替え</b>、キャリーボトルの色、ゲートの配置、
-力士ボトルの位置、スタートの合図、難所とフィニッシュの成立判定が扱えます。
+<h3>パネル（HUD）</h3>
+<p>走行中の状態と設定はパネルにまとまっています。扱えるのは、
+<b>コースの L/R 切り替え</b>、スタートの合図、開始位置、キャリーボトルの色、
+ゲートと力士ボトルの配置、難所とフィニッシュの成立判定です。
 パネルは走行体が出るのと反対側に出ます。</p>
-<p class="note">コースを固定で変えたいときは <code>SimBootstrap</code> の
-<b>Course File</b> を書き換えます（既定は <code>etrobo_2026_L.json</code>）。</p>
+<ul>
+<li>行が多いので、<b>見出し（<code>- センサ</code> など）をクリックすると節をたためます</b>。
+    たたんだ状態は次に起動したときも残ります。収まらないぶんはパネルの中をスクロールできます。</li>
+<li>カーソルがパネルの上にある間はカメラが動かないので、
+    ドラッグやホイールで視点が変わってしまうことはありません。</li>
+</ul>
+
+<h3>任意の位置から始める</h3>
+<p>難所の手前だけを何度も試したいときは開始位置を動かします。
+<code>R</code> で戻る場所が変わるだけで、走らせ方は今までと同じです。</p>
+<ul>
+<li><b>矢印キーで合わせる</b> — <code>P</code> か パネルの <code>配置(P)</code> で配置モードへ。
+    <code>↑</code><code>↓</code> で前後、<code>←</code><code>→</code> で左右、
+    カンマ <code>,</code> で左回り、ピリオド <code>.</code> で右回り
+    （<code>Shift</code> を押しながらで 10 倍）。
+    座標を計算せずに「スタートラインのぎりぎり手前」を出せます。</li>
+<li><b>走らせた場所を使う</b> — <code>現在地に</code> で、いま走行体がいる場所が開始位置になります。</li>
+<li><b>コースに焼く</b> — <code>保存</code> でコース JSON の <code>start_pose</code> を書き換えます
+    （<code>StreamingAssets</code> と <code>course/</code> の両方）。</li>
+<li><b>起動時に指定</b> — <code>-etsimStart X,Y[,方位]</code>。方位は 0 が +y、90 が -x です。</li>
+</ul>
+<p class="note">計測ゲートは動きません。スタートラインより先に置くと計測が始まらないので、
+タイムを見たいときはコース既定の位置から走らせてください。<br/>
+コースを固定で変えたいときは <code>SimBootstrap</code> の <b>Course File</b> を
+書き換えます（既定は <code>etrobo_2026_L.json</code>）。</p>
 
 <h2>6. よくあるつまずき</h2>
 <table>
@@ -199,6 +225,9 @@ CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe"</code></p></li>
     <td>パイプやファイルに流したとき。PowerShell なら
         <code>[Console]::OutputEncoding = [Text.Encoding]::UTF8</code>、
         ファイルは <code>Get-Content -Encoding UTF8</code></td></tr>
+<tr><td class="w-sym">難所（ボトル・ゲート）が出ない</td>
+    <td>難所の入ったコースか確認する（<code>_nansyo</code> が付いたもの）。
+        起動ログの <code>props=5/5</code> が<b>組み立てた数／JSON の数</b></td></tr>
 <tr><td class="w-sym">新しく足した .cs が反映されない</td>
     <td>Unity を開き直す。初回のアセット取り込みに間に合わないことがある</td></tr>
 </table>
