@@ -1,0 +1,502 @@
+{
+  "name": "ETロボコン練習コース (難所つき / 寸法は暫定)",
+  "note": "公式コース図の寸法が入るまでの暫定レイアウト。tools/svg_to_course.py で公式図から差し替える想定。",
+  "units": "mm",
+  "sheet": {
+    "width": 4200,
+    "height": 2100,
+    "color": "#F2F2F0"
+  },
+  "paths": [
+    {
+      "id": "main",
+      "color": "#101010",
+      "width": 20,
+      "closed": true,
+      "start": [
+        900,
+        300
+      ],
+      "segments": [
+        {
+          "type": "line",
+          "to": [
+            2000,
+            300
+          ]
+        },
+        {
+          "type": "cubic",
+          "c1": [
+            2400,
+            300
+          ],
+          "c2": [
+            2400,
+            700
+          ],
+          "to": [
+            2800,
+            700
+          ]
+        },
+        {
+          "type": "cubic",
+          "c1": [
+            3050,
+            700
+          ],
+          "c2": [
+            3050,
+            300
+          ],
+          "to": [
+            3300,
+            300
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            3700,
+            700
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        },
+        {
+          "type": "line",
+          "to": [
+            3700,
+            1300
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            3300,
+            1700
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        },
+        {
+          "type": "line",
+          "to": [
+            900,
+            1700
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            500,
+            1300
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        },
+        {
+          "type": "line",
+          "to": [
+            500,
+            700
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            900,
+            300
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        }
+      ]
+    },
+    {
+      "id": "garage_line",
+      "color": "#101010",
+      "width": 20,
+      "closed": false,
+      "start": [
+        1700,
+        1700
+      ],
+      "segments": [
+        {
+          "type": "line",
+          "to": [
+            1700,
+            1560
+          ]
+        }
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "id": "block_area",
+      "shape": "rect",
+      "color": "#9A9A9A",
+      "center": [
+        1600,
+        1150
+      ],
+      "size": [
+        800,
+        700
+      ],
+      "rotation": 0
+    },
+    {
+      "id": "c_r1",
+      "shape": "circle",
+      "color": "#C8202A",
+      "center": [
+        1350,
+        1400
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_g1",
+      "shape": "circle",
+      "color": "#2E7D32",
+      "center": [
+        1600,
+        1400
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_b1",
+      "shape": "circle",
+      "color": "#1F4FA8",
+      "center": [
+        1850,
+        1400
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_y2",
+      "shape": "circle",
+      "color": "#E0B000",
+      "center": [
+        1350,
+        1150
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_k2",
+      "shape": "circle",
+      "color": "#101010",
+      "center": [
+        1600,
+        1150
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_r2",
+      "shape": "circle",
+      "color": "#C8202A",
+      "center": [
+        1850,
+        1150
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_b3",
+      "shape": "circle",
+      "color": "#1F4FA8",
+      "center": [
+        1350,
+        900
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_y3",
+      "shape": "circle",
+      "color": "#E0B000",
+      "center": [
+        1600,
+        900
+      ],
+      "radius": 75
+    },
+    {
+      "id": "c_g3",
+      "shape": "circle",
+      "color": "#2E7D32",
+      "center": [
+        1850,
+        900
+      ],
+      "radius": 75
+    },
+    {
+      "id": "garage_floor",
+      "shape": "rect",
+      "color": "#D0D0D0",
+      "center": [
+        1700,
+        1460
+      ],
+      "size": [
+        260,
+        220
+      ],
+      "rotation": 0
+    }
+  ],
+  "props": [
+    {
+      "id": "block_r",
+      "type": "block",
+      "color": "#C8202A",
+      "position": [
+        1350,
+        1400
+      ],
+      "size": [
+        55,
+        55,
+        55
+      ],
+      "mass": 0.02,
+      "movable": true
+    },
+    {
+      "id": "block_g",
+      "type": "block",
+      "color": "#2E7D32",
+      "position": [
+        1600,
+        900
+      ],
+      "size": [
+        55,
+        55,
+        55
+      ],
+      "mass": 0.02,
+      "movable": true
+    },
+    {
+      "id": "block_b",
+      "type": "block",
+      "color": "#1F4FA8",
+      "position": [
+        1850,
+        1150
+      ],
+      "size": [
+        55,
+        55,
+        55
+      ],
+      "mass": 0.02,
+      "movable": true
+    },
+    {
+      "id": "block_y",
+      "type": "block",
+      "color": "#E0B000",
+      "position": [
+        1350,
+        900
+      ],
+      "size": [
+        55,
+        55,
+        55
+      ],
+      "mass": 0.02,
+      "movable": true
+    },
+    {
+      "id": "seesaw",
+      "type": "seesaw",
+      "color": "#B08040",
+      "position": [
+        2600,
+        1700
+      ],
+      "heading": 180,
+      "size": [
+        700,
+        320,
+        12
+      ],
+      "pivot_height": 32,
+      "mass": 0.35
+    },
+    {
+      "id": "garage_wall_l",
+      "type": "wall",
+      "color": "#707070",
+      "position": [
+        1560,
+        1460
+      ],
+      "heading": 90,
+      "size": [
+        220,
+        20,
+        90
+      ]
+    },
+    {
+      "id": "garage_wall_r",
+      "type": "wall",
+      "color": "#707070",
+      "position": [
+        1840,
+        1460
+      ],
+      "heading": 90,
+      "size": [
+        220,
+        20,
+        90
+      ]
+    },
+    {
+      "id": "garage_wall_b",
+      "type": "wall",
+      "color": "#707070",
+      "position": [
+        1700,
+        1360
+      ],
+      "heading": 0,
+      "size": [
+        300,
+        20,
+        90
+      ]
+    },
+    {
+      "id": "slalom_1",
+      "type": "cylinder",
+      "color": "#3060C0",
+      "position": [
+        2300,
+        520
+      ],
+      "size": [
+        70,
+        70,
+        210
+      ],
+      "mass": 0.05,
+      "movable": true
+    },
+    {
+      "id": "slalom_2",
+      "type": "cylinder",
+      "color": "#3060C0",
+      "position": [
+        2900,
+        480
+      ],
+      "size": [
+        70,
+        70,
+        210
+      ],
+      "mass": 0.05,
+      "movable": true
+    }
+  ],
+  "gates": [
+    {
+      "id": "start",
+      "from": [
+        1200,
+        150
+      ],
+      "to": [
+        1200,
+        450
+      ],
+      "kind": "start"
+    },
+    {
+      "id": "cp_s",
+      "from": [
+        3300,
+        150
+      ],
+      "to": [
+        3300,
+        450
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "cp_e",
+      "from": [
+        3550,
+        1000
+      ],
+      "to": [
+        3850,
+        1000
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "cp_n",
+      "from": [
+        2100,
+        1550
+      ],
+      "to": [
+        2100,
+        1850
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "cp_w",
+      "from": [
+        350,
+        1000
+      ],
+      "to": [
+        650,
+        1000
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "goal",
+      "from": [
+        1200,
+        150
+      ],
+      "to": [
+        1200,
+        450
+      ],
+      "kind": "goal"
+    }
+  ],
+  "start_pose": {
+    "position": [
+      950,
+      310
+    ],
+    "heading": 0
+  }
+}

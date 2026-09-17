@@ -1,0 +1,30 @@
+# ビルド生成物
+controller/build/
+controller/build_eyes/
+controller/bin/
+controller/bin_eyes/
+*.exe
+*.pdb
+*.ilk
+*.obj
+
+# Unity が自動生成するもの (リポジトリに入れない)
+unity/EtroboSim/Library/
+unity/EtroboSim/Temp/
+unity/EtroboSim/Obj/
+unity/EtroboSim/Build/
+unity/EtroboSim/Builds/
+unity/EtroboSim/Logs/
+unity/EtroboSim/UserSettings/
+unity/EtroboSim/MemoryCaptures/
+unity/EtroboSim/Recordings/
+unity/EtroboSim/*.csproj
+unity/EtroboSim/*.sln
+unity/EtroboSim/*.user
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.vs/
+.vscode/
+__pycache__/

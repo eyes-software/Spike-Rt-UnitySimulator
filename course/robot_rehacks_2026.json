@@ -1,0 +1,70 @@
+{
+  "_comment": "ETロボコン2026 ベーシッククラス走行体 Re-HackS。寸法は公式の LDraw モデル (HackSPi.mpd の ReHackSM6.ldr) を展開して実測した値。1 LDU = 0.4mm。原点は左右中心・車軸中心・床面で、+x が前方。",
+  "_source_model": "https://github.com/ETrobocon/HackSPi_BuildingInstructions  ReHackSM6.ldr",
+  "_source_doc": "Re-HackS / HackSPi dachs 走行体規定書 M6.2 版 (ETロボコン実行委員会)",
+  "_measured": "寸法・センサ位置・車輪は組立図から厳密に出した値。質量と重心だけは LDraw に情報が無いので推定値のまま（要実測）。",
+
+  "_dim_note": "全幅 136.0 / 全長 205.6 / 全高 159.6 mm。車軸は前端から 99.6mm、後端から 106.0mm の位置。",
+  "wheel_diameter_mm": 56.0,
+  "wheel_width_mm": 14.0,
+  "tread_mm": 112.0,
+  "body_length_mm": 205.6,
+  "body_width_mm": 136.0,
+  "body_height_mm": 159.6,
+  "body_offset_x_mm": -3.2,
+
+  "_mass_note": "要実測。ハブ+電池 218g / ラージアンギュラーモータ 86g x2 / ミディアム 60g / 車輪 30g x2 / センサ・ビーム類から積み上げた推定。",
+  "mass_kg": 0.64,
+  "center_of_mass_x_mm": -10.0,
+  "center_of_mass_height_mm": 65.0,
+
+  "_caster_note": "後方のキャスタボール。組立図では床から 3.2mm 浮いた姿勢で描かれていて、タイヤがつぶれるか車体が約 2 度後傾して接地する。",
+  "caster_offset_x_mm": -86.4,
+  "caster_radius_mm": 11.2,
+  "caster_friction": 0.06,
+
+  "no_load_rpm": 175.0,
+  "stall_torque_nm": 0.35,
+  "wheel_inertia": 0.0002,
+  "viscous_damping": 0.00012,
+  "coulomb_friction_nm": 0.002,
+  "brake_damping": 0.006,
+  "deadband_percent": 3.0,
+
+  "left_motor_mirrored": true,
+  "right_motor_mirrored": false,
+  "arm_motor_mirrored": false,
+
+  "traction_friction": 0.85,
+  "lateral_friction": 1.1,
+  "slip_stiffness": 220.0,
+  "rolling_resistance": 0.015,
+
+  "_color_sensor_note": "37308 のレンズ面は車軸中心から前方 40.0mm、床から 8.4mm。真下を向いている。反射光量の黒白は実機のキャリブレーション値に差し替えること（要実測）。",
+  "color_sensor_x_mm": 40.0,
+  "color_sensor_y_mm": 0.0,
+  "color_sensor_height_mm": 8.4,
+  "color_sensor_spot_mm": 12.0,
+  "color_sensor_noise": 0.6,
+  "color_sensor_time_constant": 0.004,
+  "reflection_black": 6.0,
+  "reflection_white": 94.0,
+
+  "_ultrasonic_note": "37316 の発信面は車軸中心から前方 17.6mm、床から 148.0mm。走行体の最上部で、水平前向き。高さがあるので 55mm のブロックは視野に入らない。",
+  "ultrasonic_x_mm": 17.6,
+  "ultrasonic_height_mm": 148.0,
+  "ultrasonic_min_mm": 30.0,
+  "ultrasonic_max_mm": 2000.0,
+  "ultrasonic_beam_deg": 12.0,
+  "ultrasonic_noise_mm": 3.0,
+  "ultrasonic_max_incidence_deg": 60.0,
+
+  "gyro_noise_dps": 0.05,
+  "gyro_bias_dps": 0.02,
+  "accel_noise": 0.02,
+
+  "battery_mv": 8000,
+
+  "_visual_note": "組立図 (LDraw) から作った表示用メッシュ。tools/ldraw_to_mesh.py で生成する。物理・センサには影響しない。",
+  "visual_mesh": "robot_rehacks_2026.etmesh"
+}

@@ -1,0 +1,162 @@
+{
+  "name": "Practice Oval (立ち上げ確認用)",
+  "units": "mm",
+  "sheet": {
+    "width": 4000,
+    "height": 2000,
+    "color": "#F2F2F0"
+  },
+  "paths": [
+    {
+      "id": "main",
+      "color": "#101010",
+      "width": 20,
+      "closed": true,
+      "start": [
+        900,
+        300
+      ],
+      "segments": [
+        {
+          "type": "line",
+          "to": [
+            3100,
+            300
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            3500,
+            700
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        },
+        {
+          "type": "line",
+          "to": [
+            3500,
+            1300
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            3100,
+            1700
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        },
+        {
+          "type": "line",
+          "to": [
+            900,
+            1700
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            500,
+            1300
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        },
+        {
+          "type": "line",
+          "to": [
+            500,
+            700
+          ]
+        },
+        {
+          "type": "arc",
+          "to": [
+            900,
+            300
+          ],
+          "r": 400,
+          "sweep": 1,
+          "large": 0
+        }
+      ]
+    }
+  ],
+  "areas": [],
+  "props": [],
+  "gates": [
+    {
+      "id": "start",
+      "from": [
+        1200,
+        150
+      ],
+      "to": [
+        1200,
+        450
+      ],
+      "kind": "start"
+    },
+    {
+      "id": "cp_e",
+      "from": [
+        3350,
+        1000
+      ],
+      "to": [
+        3650,
+        1000
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "cp_n",
+      "from": [
+        2000,
+        1550
+      ],
+      "to": [
+        2000,
+        1850
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "cp_w",
+      "from": [
+        350,
+        1000
+      ],
+      "to": [
+        650,
+        1000
+      ],
+      "kind": "checkpoint"
+    },
+    {
+      "id": "goal",
+      "from": [
+        1200,
+        150
+      ],
+      "to": [
+        1200,
+        450
+      ],
+      "kind": "goal"
+    }
+  ],
+  "start_pose": {
+    "position": [
+      950,
+      310
+    ],
+    "heading": 0
+  }
+}
