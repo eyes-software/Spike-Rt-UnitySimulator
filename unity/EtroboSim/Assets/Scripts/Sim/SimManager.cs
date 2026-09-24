@@ -173,6 +173,32 @@ namespace Etrobo.Sim
         const float JogDegPerSec = 15f;
         const float JogFastFactor = 10f;
 
+        /// <summary>
+        /// 制御プロセスの接続から指定の秒数後にフォースセンサを押す。
+        ///
+        /// 自動スタートは「走り出したら押すのをやめる」ので、走っている途中で
+        /// もう一度押させたいときに使う（シナリオの BUTTON 待ちなど、
+        /// 実機では人が 2 回押すもの）。秒数は接続からの経過。
+        /// </summary>
+        public float[] PressForceAt;
+
+        int _pressedCount;
+
+        void UpdateScriptedPresses()
+        {
+            if (PressForceAt == null || PressForceAt.Length == 0) return;
+            if (Server == null || !Server.ControllerConnected || _connectedSince < 0f) return;
+
+            float elapsed = Time.realtimeSinceStartup - _connectedSince;
+            while (_pressedCount < PressForceAt.Length && elapsed >= PressForceAt[_pressedCount])
+            {
+                _pressedCount++;
+                PressForceSensor();
+                Debug.Log($"[Etsim] フォースセンサを押しました（接続から {elapsed:F1} 秒、"
+                          + $"{_pressedCount}/{PressForceAt.Length} 回目）");
+            }
+        }
+
         void HandlePlacement(float dt)
         {
             if (!PlacementMode) return;
@@ -252,6 +278,7 @@ namespace Etrobo.Sim
         int _connectionGeneration;
         bool _seenAtStart;
         bool _goalLogged;
+        bool _wasConnected;
         bool _diagnosticsLogged;
         bool _placementLogged;
 
@@ -372,6 +399,23 @@ namespace Etrobo.Sim
             Timer.StepFinish(
                 NansyoJudge.Footprint(Robot.Spec, pos, Robot.TruthHeadingDeg, _footprint),
                 IsFullyStopped(), dt);
+
+            // 走行プログラムが終わったところで難所の状態を残す。
+            // 周回しないシナリオ（難所だけの試験など）はゴールを踏まないので、
+            // ゴール時のログだけだと結果がどこにも出ない。
+            // ControllerConnected は相手の宛先を覚えているかなので、落ちても true のまま。
+            // 「指令が途絶えた」= モータを切るのと同じ条件で見る。
+            bool connectedNow = Server != null && Server.ControllerConnected
+                                && Server.SecondsSinceLastPacket <= ControlTimeoutSeconds;
+            if (_wasConnected && !connectedNow)
+            {
+                _wasConnected = false;
+                if (Judge != null) Debug.Log($"[Etsim] 走行終了時の難所 {Judge.Summary()}");
+            }
+            else if (connectedNow)
+            {
+                _wasConnected = true;
+            }
 
             if (Timer.FinishEstablished && !finishedBefore)
                 Debug.Log($"[Etsim] フィニッシュ成立（ガレージで {LapTimer.FinishHoldSeconds:F0} 秒"
@@ -539,6 +583,7 @@ namespace Etrobo.Sim
             HandlePlacement(Time.deltaTime);
 
             UpdateAutoStart();
+            UpdateScriptedPresses();
         }
 
         Vector2 _idleFrom;
@@ -553,8 +598,12 @@ namespace Etrobo.Sim
         /// <summary>同じく、向きのずれ。ジャイロの模擬ドリフトより十分小さくとる。</summary>
         const float IdleTurnDeg = 0.5f;
 
-        /// <summary>「止まっている」とみなす回転の速さ [deg/s]。</summary>
-        const float IdleSpinDps = 0.01f;
+        /// <summary>
+        /// 「止まっている」とみなす回転の速さ [deg/s]。
+        /// 静止していても PhysX の解の揺れで 0.02〜0.03 は出るので、その上に取る。
+        /// じわじわした回転は瞬時値ではなく累積角（IdleTurnDeg）のほうで捕まえる。
+        /// </summary>
+        const float IdleSpinDps = 0.05f;
 
         readonly Vector2[] _footprint = new Vector2[4];
 
@@ -690,6 +739,7 @@ namespace Etrobo.Sim
                 _autoStartFired = false;
                 _connectedSince = -1f;
                 _seenAtStart = false;
+                _pressedCount = 0;
                 Debug.Log($"[Etsim] 制御プロセスが接続しました (第 {_connectionGeneration} 世代)");
             }
 
@@ -709,8 +759,8 @@ namespace Etrobo.Sim
             // そこで「移動した」と判定すると、リセットが届く前に自動スタートを
             // 使い切ってしまい、いつまでもボタン待ちのままになる。
             // 一度スタート地点にいるのを見てから、移動を見はじめる。
-            bool atStart = (Robot.TruthPositionMm - StartPositionMm).sqrMagnitude
-                           <= AutoStartMovedMm * AutoStartMovedMm;
+            float fromStart = Vector2.Distance(Robot.TruthPositionMm, StartPositionMm);
+            bool atStart = fromStart <= AutoStartMovedMm;
             if (atStart) _seenAtStart = true;
             if (!_seenAtStart)
             {
@@ -718,10 +768,15 @@ namespace Etrobo.Sim
                 return;
             }
 
-            if (!atStart)
+            // 走り出したかどうかは、離れた距離だけでなく**いま動いているか**でも見る。
+            // 置いた直後の沈み込みで 20mm 以上すべることがあり、距離だけだと
+            // それを走り出しと取り違えて、押すのをやめてしまう。
+            float speedMmPerSec = Robot.Body.velocity.magnitude * CourseSpace.MToMm;
+            if (!atStart && speedMmPerSec > AutoStartMovingMmPerSec)
             {
                 _autoStartFired = true;
-                Debug.Log("[Etsim] 自動スタートで走り出しました");
+                Debug.Log($"[Etsim] 自動スタートで走り出しました"
+                          + $"（開始位置から {fromStart:F0}mm / {speedMmPerSec:F0}mm/s）");
                 return;
             }
 
@@ -742,6 +797,9 @@ namespace Etrobo.Sim
 
         /// <summary>自動スタートが「走り出した」とみなす移動量 [mm]。</summary>
         const float AutoStartMovedMm = 20f;
+
+        /// <summary>同じく、走っているとみなす速さ [mm/s]。沈み込みの滑りと区別する。</summary>
+        const float AutoStartMovingMmPerSec = 30f;
 
         void OnDestroy()
         {

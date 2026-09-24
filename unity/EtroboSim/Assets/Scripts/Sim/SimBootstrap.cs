@@ -72,6 +72,17 @@ namespace Etrobo.Sim
             // -etsimTruthLog <秒> : 真の位置と向きを定期的にログへ出す（計測用）
             if (float.TryParse(CommandLineArg("-etsimTruthLog"), out float truthLog))
                 Manager.TruthLogSeconds = truthLog;
+            // -etsimPressForce 3,10 : 接続から 3 秒後と 10 秒後にフォースセンサを押す
+            string presses = CommandLineArg("-etsimPressForce");
+            if (!string.IsNullOrEmpty(presses))
+            {
+                var parts = presses.Split(',');
+                var times = new System.Collections.Generic.List<float>();
+                foreach (var t in parts)
+                    if (float.TryParse(t, out float sec)) times.Add(sec);
+                Manager.PressForceAt = times.ToArray();
+            }
+
             Manager.Initialize(course, builder.Field, robot);
 
             ApplyStartCommandLine();
