@@ -30,6 +30,7 @@
 #include <spike/pup/ultrasonicsensor.h>
 #include <spike/hub/battery.h>
 #include <spike/hub/button.h>
+#include <spike/hub/bluetooth.h>
 #include <spike/hub/display.h>
 #include <spike/hub/imu.h>
 #include <spike/hub/speaker.h>
@@ -692,6 +693,23 @@ void hub_system_shutdown(void)
     printf("[etsim] hub_system_shutdown() が呼ばれました\n");
     etsim_runtime_shutdown();
     exit(0);
+}
+
+/*
+ * Bluetooth。シミュレータには相手がいないので、広告は成功したことにして
+ * 「未接続」を返し続ける。走行ログは serial_wri_dat のほうで標準出力に出る。
+ *
+ * 実機では、接続を待ってから走り出すアプリだとここで止まる。
+ * シミュレータでは待たせずに済むよう、常に未接続を返して先へ進ませる。
+ */
+pbio_error_t hub_bluetooth_enable_advertising(void) { return PBIO_SUCCESS; }
+pbio_error_t hub_bluetooth_disable_advertising(void) { return PBIO_SUCCESS; }
+
+pbio_error_t hub_bluetooth_is_connected(bool *connected)
+{
+    if (connected == NULL) return PBIO_ERROR_INVALID_ARG;
+    *connected = false;
+    return PBIO_SUCCESS;
 }
 
 /* ハブの 5x5 表示は端末へ出す。走行中の状態確認には十分。 */

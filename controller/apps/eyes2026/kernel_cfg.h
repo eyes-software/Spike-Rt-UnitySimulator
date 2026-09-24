@@ -9,6 +9,7 @@
  *   CRE_TSK(MAIN_TASK,   {TA_ACT,  0, main_task,   MAIN_PRIORITY,    ...});
  *   CRE_TSK(TRACER_TASK, {TA_NULL, 0, tracer_task, TRACER_PRIORITY,  ...});
  *   CRE_TSK(LOG_TASK,    {TA_NULL, 0, log_task,    TRACER_PRIORITY+1,...});
+ *   CRE_TSK(SONAR_TASK,  {TA_NULL, 0, sonar_task,  TRACER_PRIORITY-1,...});
  *   CRE_CYC(TRACER_CYC,  {TA_NULL, {TNFY_ACTTSK, TRACER_TASK}, 10*1000, 1*1000});
  */
 
@@ -18,6 +19,7 @@
 #define MAIN_TASK    1
 #define TRACER_TASK  2
 #define LOG_TASK     3
+#define SONAR_TASK   4
 
 #define TRACER_CYC   1
 

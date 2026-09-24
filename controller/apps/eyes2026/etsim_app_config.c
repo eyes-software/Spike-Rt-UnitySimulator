@@ -13,6 +13,7 @@
 extern void main_task(intptr_t exinf);
 extern void tracer_task(intptr_t exinf);
 extern void log_task(intptr_t exinf);
+extern void sonar_task(intptr_t exinf);
 
 /*
  * CRE_CYC の通知方法が TNFY_ACTTSK なので、周期ハンドラは
@@ -30,6 +31,8 @@ void etsim_app_register_objects(void)
     etsim_register_task(MAIN_TASK,   main_task,   0);
     etsim_register_task(TRACER_TASK, tracer_task, 0);
     etsim_register_task(LOG_TASK,    log_task,    0);
+    /* SonarProc が act_tsk(SONAR_TASK) で起こす。ET相撲で使う。 */
+    etsim_register_task(SONAR_TASK,  sonar_task,  0);
 
     /* 周期 10ms、位相 1ms。app.cfg の値をそのまま使う。 */
     etsim_register_cyclic(TRACER_CYC, tracer_cyc_handler, 0, 10 * 1000, 1 * 1000);

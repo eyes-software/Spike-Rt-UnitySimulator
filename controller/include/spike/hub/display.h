@@ -7,6 +7,9 @@ extern "C" {
 
 #include <stdint.h>
 #include <pbio/error.h>
+/* PBIO_SIDE_* は上流では <pbio/light_matrix.h> 経由で入る。
+   公式の C++ ラッパ Display.h が使うので、ここで取り込んでおく。 */
+#include <pbio/geometry.h>
 
 pbio_error_t hub_display_orientation(uint8_t up);
 pbio_error_t hub_display_off(void);

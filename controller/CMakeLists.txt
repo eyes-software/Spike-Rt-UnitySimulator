@@ -37,15 +37,38 @@ if(ETROBO_APP STREQUAL "eyes2026")
             "-DEYES2026_DIR に eyes-et2026 のパスを指定してください (app.cpp がある場所)")
     endif()
 
-    # Makefile.inc の APPL_CXXOBJS と同じ並び。走行プログラムには手を入れない。
-    set(EYES2026_UNITS
-        LOG Tracer SteeRing RobotState ColorDecision ColorInfo
-        FixedCurveDrive LineTraceDrive PIDControl
-        ReadScene Scene SceneSwitcher DistanceDecision ButtonDecision
-        TurnCorrection AngleDecision SpinDrive HaltDrive RunCircle
-        CoordinateDrive CoordinateDecision
-        DistanceDecisionAdj ColorDecisionAdj Arm ArmStop BottleColorDecision
-        DeviceWrapper NopDrive NopDecision ActionAdjust)
+    #
+    # ソースの一覧は Makefile.inc の APPL_CXXOBJS から読む。
+    #
+    # 直書きしていると、向こうでファイルが増えるたびにここが古くなる
+    # （実際 ETSumo ブランチで 3 本増えて未定義参照になった）。
+    # 走行プログラムには手を入れない方針なので、一覧も向こうを正とする。
+    #
+    set(_mk "${EYES2026_DIR}/Makefile.inc")
+    if(NOT EXISTS "${_mk}")
+        message(FATAL_ERROR "Makefile.inc が見つかりません: ${_mk}")
+    endif()
+
+    file(READ "${_mk}" _mk_text)
+    string(REPLACE "\r" "" _mk_text "${_mk_text}")
+    string(REPLACE "\\\n" " " _mk_text "${_mk_text}")   # 行末 '\' の継続を畳む
+
+    set(EYES2026_UNITS "")
+    string(REGEX MATCHALL "APPL_CXXOBJS[^\n]*" _mk_lines "${_mk_text}")
+    foreach(_line ${_mk_lines})
+        string(REGEX MATCHALL "[A-Za-z0-9_]+\\.o" _objs "${_line}")
+        foreach(_o ${_objs})
+            string(REGEX REPLACE "\\.o$" "" _o "${_o}")
+            list(APPEND EYES2026_UNITS "${_o}")
+        endforeach()
+    endforeach()
+
+    list(REMOVE_DUPLICATES EYES2026_UNITS)
+    list(LENGTH EYES2026_UNITS _unit_count)
+    if(_unit_count EQUAL 0)
+        message(FATAL_ERROR "Makefile.inc から APPL_CXXOBJS を読めませんでした")
+    endif()
+    message(STATUS "走行プログラムのユニット: ${_unit_count} 本 (Makefile.inc より)")
 
     set(ETROBO_APP_SOURCES
         "${EYES2026_DIR}/app.cpp"
