@@ -161,7 +161,7 @@ namespace Etrobo.Sim
             if (!IsStandingStill(bottle))
             {
                 PushedOut = false;
-                SumoReason = "まだ動いている";
+                SumoReason = $"まだ動いている（{BottleSpeedMmPerSec(bottle):F0}mm/s）";
                 return;
             }
 
@@ -186,11 +186,25 @@ namespace Etrobo.Sim
         /// </summary>
         void JudgeDelivery()
         {
+            Delivered = false;
+            DeliveredZone = null;
+
             var bottle = Nansyo.CarryBottle;
-            if (bottle == null || !IsStandingStill(bottle))
+            if (bottle == null)
             {
-                Delivered = false;
-                DeliveredZone = null;
+                DeliveryReason = "キャリーボトルがありません";
+                return;
+            }
+
+            // 相撲と同じく、成立しない理由を残す。
+            if (Vector3.Angle(bottle.up, Vector3.up) > UprightLimitDeg)
+            {
+                DeliveryReason = "横倒し";
+                return;
+            }
+            if (!IsStandingStill(bottle))
+            {
+                DeliveryReason = $"まだ動いている（{BottleSpeedMmPerSec(bottle):F0}mm/s）";
                 return;
             }
 
@@ -202,11 +216,20 @@ namespace Etrobo.Sim
 
                 Delivered = true;
                 DeliveredZone = zone.Color;
+                DeliveryReason = null;
                 return;
             }
 
-            Delivered = false;
-            DeliveredZone = null;
+            DeliveryReason = "ドロップゾーンの外";
+        }
+
+        /// <summary>デリバリーが成立していない理由。成立していれば null。</summary>
+        public string DeliveryReason { get; private set; }
+
+        static float BottleSpeedMmPerSec(Transform bottle)
+        {
+            var rb = bottle.GetComponent<Rigidbody>();
+            return rb == null ? 0f : rb.velocity.magnitude * CourseSpace.MToMm;
         }
 
         /// <summary>
@@ -349,7 +372,7 @@ namespace Etrobo.Sim
         /// <summary>ゴールしたときなどに 1 行で残す。</summary>
         public string Summary()
         {
-            string delivery = !Delivered ? "不成立"
+            string delivery = !Delivered ? "不成立（" + DeliveryReason + "）"
                             : DeliveredColorMatch ? "色一致"
                             : $"{NansyoController.NameOf(DeliveredZone.Value)}ゾーン";
 

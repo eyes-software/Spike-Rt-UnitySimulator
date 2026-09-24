@@ -708,6 +708,24 @@ namespace Etrobo.Sim
                       + $" / {Mathf.DeltaAngle(_truthLogFromHeadingDeg, headingDeg):F4}°"
                       + $" 速度 {Robot.Body.velocity.magnitude * 1000f:F3}mm/s"
                       + $" 角速度 {Robot.Body.angularVelocity.y * Mathf.Rad2Deg:F5}deg/s");
+
+            // ボトルも一緒に出す。「いつまでも動いていないか」を見るため。
+            if (Judge == null || Judge.Nansyo == null) return;
+            LogBottle("力士", Judge.Nansyo.RikishiBottle);
+            LogBottle("キャリー", Judge.Nansyo.CarryBottle);
+        }
+
+        static void LogBottle(string name, Transform bottle)
+        {
+            if (bottle == null) return;
+
+            var rb = bottle.GetComponent<Rigidbody>();
+            Vector2 p = CourseSpace.ToCourseMm(bottle.position);
+
+            Debug.Log($"[Etsim] {name}ボトル ({p.x,7:F1}, {p.y,7:F1})mm"
+                      + $" 傾き {Vector3.Angle(bottle.up, Vector3.up),5:F1}°"
+                      + $" 速さ {(rb != null ? rb.velocity.magnitude * CourseSpace.MToMm : 0f),7:F2}mm/s"
+                      + $" 回転 {(rb != null ? rb.angularVelocity.magnitude * Mathf.Rad2Deg : 0f),7:F2}deg/s");
         }
 
         void StartIdleWindow(Vector2 pos, float headingDeg)
