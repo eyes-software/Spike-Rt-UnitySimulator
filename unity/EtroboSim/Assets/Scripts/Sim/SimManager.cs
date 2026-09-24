@@ -151,6 +151,39 @@ namespace Etrobo.Sim
             ResetSimulation();
         }
 
+        /// <summary>
+        /// 開始位置でその場回転しながらソナーを測る（掃引）。
+        ///
+        /// 探索の設計に要るのは「どの向きに何が見えるか」なので、走らせる前に
+        /// 静的に測れるようにしておく。ソナーは時定数を持たないモデルなので、
+        /// 姿勢を変えてその場で読めば 1 点ずつ正確に取れる。
+        /// </summary>
+        public void RunSonarSweep(float stepDeg)
+        {
+            if (stepDeg <= 0f || Robot == null) return;
+
+            float baseHeading = StartHeadingDeg;
+            Debug.Log($"[Etsim] ソナー掃引 開始 位置 ({StartPositionMm.x:F1}, {StartPositionMm.y:F1})mm"
+                      + $" 基準方位 {baseHeading:F1}° 刻み {stepDeg:F1}°");
+            Debug.Log("[Etsim] 掃引CSV heading_deg,distance_mm");
+
+            for (float a = 0f; a < 360f; a += stepDeg)
+            {
+                float h = Mathf.Repeat(baseHeading + a + 180f, 360f) - 180f;
+                Robot.ResetPose(StartPositionMm, h);
+
+                // autoSyncTransforms が false なので、レイキャストに姿勢を反映させる
+                Physics.SyncTransforms();
+                Ultrasonic.Step();
+
+                Debug.Log($"[Etsim] 掃引CSV {h:F1},{Ultrasonic.DistanceMm}");
+            }
+
+            Robot.ResetPose(StartPositionMm, baseHeading);
+            Physics.SyncTransforms();
+            Debug.Log("[Etsim] ソナー掃引 終了");
+        }
+
         /// <summary>いま走行体がいる場所を開始位置にする。</summary>
         public void SetStartHere() => SetStart(Robot.TruthPositionMm, Robot.TruthHeadingDeg);
 

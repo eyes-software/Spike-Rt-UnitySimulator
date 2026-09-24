@@ -110,6 +110,8 @@ namespace Etrobo.Sim
 
             SetUpScreenshotIfRequested();
 
+            SetUpSonarSweepIfRequested();
+
             // props は JSON の件数と**組み立てた件数**の両方を出す。
             // 片方だけだと、置いたはずの難所が出ていないときに切り分けられない。
             Debug.Log($"[Etsim] コース '{course.Name}' を構築しました "
@@ -221,6 +223,73 @@ namespace Etrobo.Sim
         ///   Unity.exe ... -etsimScreenshot out.png [-etsimScreenshotDelay 2]
         /// 見え方の確認を目視の報告だけに頼らずに済ませるため。
         /// </summary>
+        /// <summary>
+        /// ソナーの掃引。
+        ///   -etsimSonarSweep 1            1° 刻みで一瞬で測る（数字だけ）
+        ///   -etsimSonarSweep 2,20         20 秒かけて回す。画面で見える
+        ///   -etsimSonarSweep 2,20,<出力先> さらにコマを連番 PNG で保存する
+        /// </summary>
+        void SetUpSonarSweepIfRequested()
+        {
+            string arg = CommandLineArg("-etsimSonarSweep");
+            if (string.IsNullOrEmpty(arg)) return;
+
+            var f = arg.Split(',');
+            if (!float.TryParse(f[0], out float step) || step <= 0f)
+            {
+                Debug.LogWarning($"[Etsim] -etsimSonarSweep {arg} は読めませんでした (例 2,20)");
+                return;
+            }
+
+            float seconds = 0f;
+            if (f.Length > 1) float.TryParse(f[1], out seconds);
+            string frameDir = f.Length > 2 ? f[2] : null;
+
+            if (seconds <= 0f)
+            {
+                Manager.RunSonarSweep(step);   // 一瞬で測るほう
+                return;
+            }
+
+            var view = gameObject.AddComponent<SonarSweepView>();
+            view.Manager = Manager;
+            StartCoroutine(AnimatedSweep(view, step, seconds, frameDir));
+        }
+
+        System.Collections.IEnumerator AnimatedSweep(SonarSweepView view, float step,
+                                                     float seconds, string frameDir)
+        {
+            // カメラが落ち着くのを待ってから走行体に寄る。CameraRig の Start が
+            // コース全体に合わせ直すので、先に寄せても戻される。
+            yield return new WaitForSecondsRealtime(3f);
+            if (!string.IsNullOrEmpty(frameDir)) Directory.CreateDirectory(frameDir);
+
+            // 1 コマ目から寄った絵にしたいので、先に寄せて描画を 1 回通す。
+            // FrameAt はカメラの目標を変えるだけで、実際に動くのは LateUpdate。
+            if (Camera != null)
+            {
+                Camera.Smoothing = 0f;
+                Camera.FrameAt(Manager.StartPositionMm, 0.9f, 42f);
+                yield return null;
+                yield return null;
+            }
+
+            yield return view.Run(step, seconds, i =>
+            {
+                if (Camera == null) return;
+
+                // CameraRig の初期化がコース全体に合わせ直すので、
+                // 1 回寄せるだけだと戻される。撮る直前に毎回寄せ直す。
+                Camera.Smoothing = 0f;
+                Camera.FrameAt(Manager.StartPositionMm, 0.9f, 42f);
+
+                if (string.IsNullOrEmpty(frameDir)) return;
+                CaptureFrame(Path.Combine(frameDir, $"sweep_{i:D4}.png"));
+            });
+
+            Debug.Log("[Etsim] ソナー掃引 終了");
+        }
+
         void SetUpScreenshotIfRequested()
         {
             string path = CommandLineArg("-etsimScreenshot");
@@ -266,6 +335,14 @@ namespace Etrobo.Sim
                 yield return null;
             }
 
+            CaptureFrame(path);
+        }
+
+        /// <summary>
+        /// カメラの絵を PNG で保存する。掃引のコマ撮りからも使う。
+        /// </summary>
+        public void CaptureFrame(string path)
+        {
             // ScreenCapture は別モジュール扱いで、依存を増やしたくない。
             // カメラを RenderTexture へ描けばコアの機能だけで済み、
             // ウィンドウの大きさやフォーカスにも左右されない。
@@ -273,7 +350,7 @@ namespace Etrobo.Sim
             if (cam == null)
             {
                 Debug.LogError("[Etsim] カメラが見つからないので画面を保存できません");
-                yield break;
+                return;
             }
 
             const int width = 1600;
