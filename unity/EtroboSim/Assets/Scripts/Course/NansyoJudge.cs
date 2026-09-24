@@ -145,20 +145,38 @@ namespace Etrobo.Sim
             if (bottle == null || Nansyo.Layout.DohyoRadiusMm <= 0f)
             {
                 PushedOut = false;
+                SumoReason = "力士ボトルがありません";
+                return;
+            }
+
+            // 成立しない理由を残す。「不成立」だけだと、どこまでできていたのか
+            // （まだ土俵の中なのか、倒したのか、転がっている最中なのか）が分からない。
+            if (Vector3.Angle(bottle.up, Vector3.up) > UprightLimitDeg)
+            {
+                PushedOut = false;
+                SumoReason = "横倒し";
                 return;
             }
 
             if (!IsStandingStill(bottle))
             {
                 PushedOut = false;
+                SumoReason = "まだ動いている";
                 return;
             }
 
             // 「完全に」押し出す。底面が土俵の線にかかっていたらまだ成立しない。
             Vector2 pos = CourseSpace.ToCourseMm(bottle.position);
+            float d = Vector2.Distance(pos, Nansyo.Layout.DohyoCenter);
             PushedOut = IsOutsideDohyo(pos, Nansyo.Layout.DohyoCenter,
                                        Nansyo.RikishiRadiusMm, Nansyo.Layout.DohyoRadiusMm);
+            SumoReason = PushedOut ? null
+                       : $"土俵にかかっている（中心から {d:F0}mm、外まであと "
+                         + $"{Nansyo.Layout.DohyoRadiusMm + Nansyo.RikishiRadiusMm - d:F0}mm）";
         }
+
+        /// <summary>押し出しが成立していない理由。成立していれば null。</summary>
+        public string SumoReason { get; private set; }
 
         // -- ボトルデリバリー (5.16.2) ----------------------------------------
 
@@ -335,7 +353,7 @@ namespace Etrobo.Sim
                             : DeliveredColorMatch ? "色一致"
                             : $"{NansyoController.NameOf(DeliveredZone.Value)}ゾーン";
 
-            return $"押し出し {(PushedOut ? "成立" : "不成立")} / "
+            return $"押し出し {(PushedOut ? "成立" : "不成立（" + SumoReason + "）")} / "
                    + $"デリバリー {delivery} / ラリー {RallyLaps} 周回"
                    + $" = 難所 {Points} ポイント";
         }

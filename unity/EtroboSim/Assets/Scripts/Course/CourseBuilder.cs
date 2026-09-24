@@ -220,6 +220,18 @@ namespace Etrobo.Sim
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             if (p.CenterOfMassHeightMm > 0f)
                 rb.centerOfMass = new Vector3(0f, p.CenterOfMassHeightMm * mm, 0f);
+
+            //
+            // 転がり抵抗のぶんを角速度の減衰で入れる。
+            //
+            // PhysX は転がり抵抗を持たないので、これが無いと横倒しになった
+            // ボトルがコース上をいつまでも転がり続ける（実測で 100 秒たっても
+            // 止まらなかった）。実物の PET ボトルは紙のマットの上なら数秒で
+            // 止まるので、判定の「静止していること」がいつまでも成立しない。
+            // 立っている間はほとんど効かない（回らないので）。
+            //
+            rb.angularDrag = 4f;
+            rb.drag = 0.2f;
         }
 
         /// <summary>
