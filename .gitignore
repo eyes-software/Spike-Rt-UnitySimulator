@@ -1,3 +1,6 @@
+# 録画（tools/run_batch.ps1 の既定の出力先）
+record/
+
 # ビルド生成物
 controller/build/
 controller/build_eyes/

@@ -817,6 +817,23 @@ python tools/add_race_setup.py course/etrobo_2026.json -o course/etrobo_2026_L.j
 ffmpeg -framerate 30 -i out/frames/f_%05d.jpg -r 30 -c:v libx264 -pix_fmt yuv420p run.mp4
 ```
 
+条件を振って何本も撮って 1 本にまとめるところまでは、2 つの道具に
+してあります。ET相撲で力士ボトルの置き場所を変えながら撮る例です。
+
+```powershell
+# 9 か所ぶん走らせて録る（既定の出力先は record/）
+& .	oolsun_batch.ps1
+
+# 見出しと結果つきの 1 本にまとめる。タグを並べるとその配置だけ
+python tools/make_video.py record top bot lft rgt -o sumo.mp4
+```
+
+`run_batch.ps1` は出力先に `runs.json`（ケースの一覧）を残し、
+`make_video.py` はそれと真値ログを読んで、配置と成否を焼き込みます。
+動きのある区間だけを切り出すので、止まっている絵は落ちます。
+末尾まで動きが続いているケースは「録画が途中で切れているかも」と
+警告を出すので、そのときは `-RecordSeconds` を延ばしてください。
+
 いくつか癖があります。
 
 - **1 コマの費用がそのままコマ数になる。** このコースは描画が重く、
