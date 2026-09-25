@@ -795,6 +795,38 @@ python tools/add_race_setup.py course/etrobo_2026.json -o course/etrobo_2026_L.j
 `-etsimRikishi X,Y` と組み合わせると、ボトルの置き場所を変えたときに
 距離がどう変わるかを比べられます。
 
+### 走行の様子を動画に残す
+
+`-etsimRecord <出力先>[,fps[,秒[,connect[,幅px]]]]` で、走った様子を
+連番 JPG に残せます。4 つ目に `connect` を付けると、制御プロセスが
+接続してから録り始めます。Unity の起動にかかる時間は毎回違うので、
+秒数で待つより接続を待つほうが動き出しを確実に捉えられます。
+
+```bash
+"$UNITY" -projectPath unity/EtroboSim -executeMethod Etrobo.Sim.EditorTools.SimSceneSetup.OpenAndPlay     -etsimCourse etrobo_2026_L_nansyo.json -etsimStart 970.3,1700.8,0     -etsimScreenshotFrame 670,1700,0.78,40     -etsimRecord out/frames,30,26,connect,720
+```
+
+画角は `-etsimScreenshotFrame` と共通です。**動画にするなら、あとから
+切り出して引き伸ばすのではなく、ここで寄せて撮ること。** 引き伸ばすと
+そのぶん絵が甘くなります。
+
+撮れた時刻は出力先の `frames.txt` に残るので、再生速度はそれを見て
+決められます。動画への変換は外（ffmpeg など）でやります。
+
+```bash
+ffmpeg -framerate 30 -i out/frames/f_%05d.jpg -r 30 -c:v libx264 -pix_fmt yuv420p run.mp4
+```
+
+いくつか癖があります。
+
+- **1 コマの費用がそのままコマ数になる。** このコースは描画が重く、
+  720px で 30fps、1280px まで上げると Unity が止まってしまいます
+- **撮っている間はシミュレータの進みが遅くなる。** 実時間の 1/4 ほどに
+  なるので、録画の秒数は動きの長さの 4〜5 倍を見ておきます
+- **制御プロセスが「応答が途絶えた」と判断して落ちることがある。**
+  録画で Unity が一瞬止まるためで、`ETSIM_LOST_TIMEOUT_MS=15000` を
+  立てておくと避けられます
+
 ### ゲインを探索する
 
 `tools/tune_gains.ps1` は Unity を 1 回だけ起動して再生状態にし、

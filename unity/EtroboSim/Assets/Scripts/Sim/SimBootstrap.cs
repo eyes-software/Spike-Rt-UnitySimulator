@@ -110,6 +110,8 @@ namespace Etrobo.Sim
 
             SetUpScreenshotIfRequested();
 
+            SetUpRecordIfRequested();
+
             SetUpSonarSweepIfRequested();
 
             // props は JSON の件数と**組み立てた件数**の両方を出す。
@@ -307,30 +309,8 @@ namespace Etrobo.Sim
         {
             yield return new WaitForSecondsRealtime(delay);
 
-            // -etsimScreenshotFrame robot で走行体に寄せてから撮る。
-            // 見た目の確認は全体像では判断できない。
-            // CameraRig の Start がコース全体に合わせ直すので、待ってから寄せる。
-            string frame = CommandLineArg("-etsimScreenshotFrame");
-            if (!string.IsNullOrEmpty(frame) && Camera != null)
+            if (ApplyScreenshotFrame())
             {
-                Camera.Smoothing = 0f;
-                if (frame == "robot")
-                {
-                    Camera.FrameRobot();
-                }
-                else
-                {
-                    // "x,y[,距離m[,見下ろし角]]" で任意の場所に寄る
-                    var parts = frame.Split(',');
-                    if (parts.Length >= 2
-                        && float.TryParse(parts[0], out float fx)
-                        && float.TryParse(parts[1], out float fy))
-                    {
-                        float dist = (parts.Length > 2 && float.TryParse(parts[2], out float d)) ? d : 1.2f;
-                        float pitch = (parts.Length > 3 && float.TryParse(parts[3], out float pa)) ? pa : 25f;
-                        Camera.FrameAt(new Vector2(fx, fy), dist, pitch);
-                    }
-                }
                 yield return null;
                 yield return null;
             }
@@ -339,9 +319,147 @@ namespace Etrobo.Sim
         }
 
         /// <summary>
-        /// カメラの絵を PNG で保存する。掃引のコマ撮りからも使う。
+        /// -etsimScreenshotFrame の指定どおりにカメラを寄せる。寄せたら true。
+        ///
+        /// CameraRig は LateUpdate で自分の目標へ戻すので、撮る直前に毎回呼ぶ。
         /// </summary>
-        public void CaptureFrame(string path)
+        bool ApplyScreenshotFrame()
+        {
+            // -etsimScreenshotFrame robot で走行体に寄せてから撮る。
+            // 見た目の確認は全体像では判断できない。
+            // CameraRig の Start がコース全体に合わせ直すので、待ってから寄せる。
+            string frame = CommandLineArg("-etsimScreenshotFrame");
+            if (string.IsNullOrEmpty(frame) || Camera == null) return false;
+
+            Camera.Smoothing = 0f;
+            if (frame == "robot")
+            {
+                Camera.FrameRobot();
+                return true;
+            }
+
+            // "x,y[,距離m[,見下ろし角]]" で任意の場所に寄る
+            var parts = frame.Split(',');
+            if (parts.Length >= 2
+                && float.TryParse(parts[0], out float fx)
+                && float.TryParse(parts[1], out float fy))
+            {
+                float dist = (parts.Length > 2 && float.TryParse(parts[2], out float d)) ? d : 1.2f;
+                float pitch = (parts.Length > 3 && float.TryParse(parts[3], out float pa)) ? pa : 25f;
+                Camera.FrameAt(new Vector2(fx, fy), dist, pitch);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 走行の様子を連番 PNG で残す。
+        ///   -etsimRecord <出力先>[,fps[,秒[,connect[,幅px]]]]
+        /// 4 つ目に connect を付けると、制御プロセスが接続してから録り始める。
+        /// Unity の起動にかかる時間は毎回違うので、動き出しを確実に捉えたいときは
+        /// 秒数で待つより接続を待つほうが確か。
+        ///
+        /// 5 つ目は 1 コマの幅[px]。既定の 1600 だと 1 コマ 0.3 秒ほどかかり、
+        /// 数コマしか撮れないうちに動きが終わってしまう。動画にするときは
+        /// 720 くらいまで落として、コマ数を稼ぐ。
+        ///
+        /// 動画にするのは外（ffmpeg）でやる。ここは実際に撮れた時刻を
+        /// frames.txt に残すので、再生速度はそれを見て決められる。
+        /// </summary>
+        void SetUpRecordIfRequested()
+        {
+            string arg = CommandLineArg("-etsimRecord");
+            if (string.IsNullOrEmpty(arg)) return;
+
+            var f = arg.Split(',');
+            string dir = f[0];
+            float fps = (f.Length > 1 && float.TryParse(f[1], out float v) && v > 0f) ? v : 20f;
+            float seconds = (f.Length > 2 && float.TryParse(f[2], out float s) && s > 0f) ? s : 15f;
+            bool onConnect = f.Length > 3 && f[3] == "connect";
+            int width = (f.Length > 4 && int.TryParse(f[4], out int w) && w >= 160) ? w : 1600;
+
+            StartCoroutine(Record(dir, fps, seconds, onConnect, width));
+        }
+
+        System.Collections.IEnumerator Record(string dir, float fps, float seconds, bool onConnect, int width)
+        {
+            if (onConnect)
+                while (Manager == null || Manager.Server == null || !Manager.Server.ControllerConnected)
+                    yield return null;
+
+            Directory.CreateDirectory(dir);
+            if (ApplyScreenshotFrame()) { yield return null; yield return null; }
+
+            int total = Mathf.Max(1, Mathf.RoundToInt(seconds * fps));
+            float interval = 1f / fps;
+            float t0 = Time.realtimeSinceStartup;
+            var times = new System.Text.StringBuilder();
+
+            Debug.Log($"[Etsim] 録画開始 {dir} 目標 {fps:F0}fps {seconds:F0}秒 (最大 {total} コマ)");
+
+            // 動きは実時間で 2〜3 秒しか続かないので、1 コマの費用がそのまま
+            // コマ数に効く。RenderTexture と Texture2D は録画の間だけ使い回し、
+            // 書き出しは PNG ではなく JPG にする。
+            var cam = Camera != null ? Camera.GetComponent<UnityEngine.Camera>() : UnityEngine.Camera.main;
+            if (cam == null)
+            {
+                Debug.LogError("[Etsim] カメラが見つからないので録画できません");
+                yield break;
+            }
+
+            width = Mathf.Max(160, width) & ~1;
+            int height = Mathf.RoundToInt(width / Mathf.Max(0.1f, cam.aspect)) & ~1;
+            var rt = new RenderTexture(width, height, 24);
+            var shot = new Texture2D(width, height, TextureFormat.RGB24, false);
+            var area = new Rect(0, 0, width, height);
+
+            // WaitForEndOfFrame で Unity の描画に相乗りするほうが安く見えるが、
+            // その Unity 自身がこのコースでは 7fps 程度でしか回っていないので、
+            // こちらの都合で cam.Render() を呼ぶほうがコマ数を稼げる。
+            // 720px・JPG・テクスチャの使い回しと合わせて実測 30fps。
+            int shotCount = 0;
+            for (int i = 0; i < total; i++)
+            {
+                ApplyScreenshotFrame();
+
+                var prevTarget = cam.targetTexture;
+                var prevActive = RenderTexture.active;
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                shot.ReadPixels(area, 0, 0);
+                shot.Apply();
+                cam.targetTexture = prevTarget;
+                RenderTexture.active = prevActive;
+
+                File.WriteAllBytes(Path.Combine(dir, $"f_{i:D5}.jpg"), shot.EncodeToJPG(85));
+                shotCount = i + 1;
+                times.Append(i).Append(',')
+                     .Append((Time.realtimeSinceStartup - t0).ToString("F3")).Append('\n');
+
+                // 1 コマの保存が間隔より遅いときは待たない。撮れるだけ撮る。
+                if (Time.realtimeSinceStartup - t0 < (i + 1) * interval)
+                    yield return new WaitForSecondsRealtime(interval);
+
+                if (Time.realtimeSinceStartup - t0 > seconds) break;
+            }
+
+            Destroy(shot);
+            rt.Release();
+            Destroy(rt);
+            total = shotCount;
+
+            File.WriteAllText(Path.Combine(dir, "frames.txt"), times.ToString());
+            float span = Time.realtimeSinceStartup - t0;
+            Debug.Log($"[Etsim] 録画終了 {total} コマ / {span:F1} 秒 = 実測 {total / Mathf.Max(0.001f, span):F1}fps");
+        }
+
+        /// <summary>
+        /// カメラの絵を PNG で保存する。掃引のコマ撮りからも使う。
+        /// quiet を立てるとログを出さない（録画で 1 コマごとに出ると読めなくなる）。
+        /// width は 1 コマの幅[px]。小さくすると 1 コマの保存が速くなる。
+        /// </summary>
+        public void CaptureFrame(string path, bool quiet = false, int width = 1600)
         {
             // ScreenCapture は別モジュール扱いで、依存を増やしたくない。
             // カメラを RenderTexture へ描けばコアの機能だけで済み、
@@ -353,8 +471,9 @@ namespace Etrobo.Sim
                 return;
             }
 
-            const int width = 1600;
-            int height = Mathf.RoundToInt(width / Mathf.Max(0.1f, cam.aspect));
+            // 動画の幅は偶数でないと h.264 に渡せない
+            width = Mathf.Max(160, width) & ~1;
+            int height = Mathf.RoundToInt(width / Mathf.Max(0.1f, cam.aspect)) & ~1;
 
             var rt = new RenderTexture(width, height, 24);
             var previous = cam.targetTexture;
@@ -377,7 +496,7 @@ namespace Etrobo.Sim
             rt.Release();
             Destroy(rt);
 
-            Debug.Log($"[Etsim] 画面を {path} へ保存しました ({width}x{height})");
+            if (!quiet) Debug.Log($"[Etsim] 画面を {path} へ保存しました ({width}x{height})");
         }
 
         static string CommandLineArg(string name)
