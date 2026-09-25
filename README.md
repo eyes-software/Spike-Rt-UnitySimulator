@@ -343,6 +343,18 @@ Get-Content app.log -Encoding UTF8
 出てこないときは、走行プログラムが `serial_opn_por()` を呼べているかを見ます。
 成功していれば `[etsim] シリアルポート 2 を開きました (Bluetooth の代わり)` が出ます。
 
+**「接続していないとログを出さない」作りのとき**は、環境変数
+`ETSIM_BT_CONNECTED=1` を立てて起動します。`hub_bluetooth_is_connected()` が
+「接続済み」を返すようになり、待ち構えている側がログを出し始めます。
+既定は未接続のままです（相手がいないので、接続を待つ作りのアプリを
+フォースセンサで抜けさせるため）。シリアルの出力先はどのみちこちらの
+標準出力なので、接続済みと返しても嘘にはなりません。
+
+```powershell
+$env:ETSIM_BT_CONNECTED = "1"
+.\controller\bin_eyes\etrobo_app.exe
+```
+
 実機では本物の Bluetooth SPP なので、走行体をペアリングして割り当てられた
 COM ポートを端末ソフトで開きます。シミュレータと違って**送信が詰まります**。
 実機で送りきれずに捨てているログは、シミュレータでは全部出る点に注意してください。
@@ -758,6 +770,30 @@ python tools/add_race_setup.py course/etrobo_2026.json -o course/etrobo_2026_L.j
 
 再生中は常駐のウォッチドッグも見ていて、指令 0 のまま動くと
 `[Etsim] モータ指令が 0 のまま … 動き … 回りました` と警告します。
+
+### ソナーが何を見ているかを調べる
+
+`-etsimSonarSweep` は、開始位置で走行体をその場で 1 周させながら
+超音波センサを読み、方位と距離を CSV でログに出します。
+しきい値をいくつにすれば狙った物だけを拾えるか、
+関係ない物（ゲートや壁）が何 mm のところに居るかを、
+走らせる前に数字で決められます。
+
+```bash
+# 1 度刻みで一瞬で測る（数字だけ）
+"$UNITY" -projectPath unity/EtroboSim -executeMethod Etrobo.Sim.EditorTools.SimSceneSetup.OpenAndPlay     -etsimCourse etrobo_2026_L_nansyo.json -etsimStart 970.3,1700.8,0 -etsimAutoStart 0 -etsimSonarSweep 1
+
+# 2 度刻みで 20 秒かけて回す。ビームと当たった点が画面に残る
+… -etsimSonarSweep 2,20
+
+# さらにコマを連番 PNG で保存する（3 つ目がその出力先）
+… -etsimSonarSweep 2,20,out/frames
+```
+
+`[Etsim] 掃引CSV heading_deg,distance_mm` の行に続いて 1 点ずつ出ます。
+距離が `-1` の点は計測できなかった（範囲外・入射角が浅すぎる）ところです。
+`-etsimRikishi X,Y` と組み合わせると、ボトルの置き場所を変えたときに
+距離がどう変わるかを比べられます。
 
 ### ゲインを探索する
 

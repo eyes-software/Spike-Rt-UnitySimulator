@@ -705,10 +705,21 @@ void hub_system_shutdown(void)
 pbio_error_t hub_bluetooth_enable_advertising(void) { return PBIO_SUCCESS; }
 pbio_error_t hub_bluetooth_disable_advertising(void) { return PBIO_SUCCESS; }
 
+/*
+ * 既定は「未接続」。相手がいないので、接続を待つ作りのアプリを
+ * フォースセンサで抜けさせるため。
+ *
+ * ただし「接続していないとログを出さない」作りだと、走行ログが一切
+ * 取れずに何が起きているのか分からなくなる。ログを見たいときは
+ * 環境変数 ETSIM_BT_CONNECTED=1 で「接続済み」を返せるようにしておく。
+ * シリアルの出力先は結局こちらの標準出力なので、嘘にはならない。
+ */
 pbio_error_t hub_bluetooth_is_connected(bool *connected)
 {
     if (connected == NULL) return PBIO_ERROR_INVALID_ARG;
-    *connected = false;
+
+    const char *env = getenv("ETSIM_BT_CONNECTED");
+    *connected = (env != NULL && env[0] == '1');
     return PBIO_SUCCESS;
 }
 
