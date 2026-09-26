@@ -791,7 +791,7 @@ namespace Etrobo.Sim
                 _connectedSince = -1f;
                 _seenAtStart = false;
                 _pressedCount = 0;
-                Debug.Log($"[Etsim] 制御プロセスが接続しました (第 {_connectionGeneration} 世代)");
+                Debug.Log($"[Etsim] 制御プロセスが接続しました (第 {_connectionGeneration} 世代) 相手 {Server.ControllerPeer}");
             }
 
             if (AutoStartSeconds <= 0f || _autoStartFired) return;

@@ -41,6 +41,12 @@ namespace Etrobo.Sim.Net
         /// 制御プロセスを起動し直したことを、パケットの中身に頼らず知るため。
         /// </summary>
         public int ConnectionGeneration => _connectionGeneration;
+
+        /// <summary>いま指令の送り主として覚えている相手。世代が変わった理由を追うため。</summary>
+        public string ControllerPeer
+        {
+            get { lock (_lock) { return _controllerEndPoint?.ToString() ?? "(なし)"; } }
+        }
         public long ReceivedCount => Interlocked.Read(ref _receivedCount);
 
         /// <summary>最後に指令を受け取ってからの経過秒。未接続なら無限大。</summary>
