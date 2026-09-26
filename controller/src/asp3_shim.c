@@ -69,10 +69,26 @@ static etsim_mutex_t g_lock;
 static etsim_cond_t  g_cond;
 static int           g_lock_ready;
 
+/*
+ * CPU ロック用。実機では loc_cpu() が割込みを止めるので、その区間は
+ * どのタスクからも割り込まれない。PC ではタスクが OS スレッドなので、
+ * 何もしないと loc_cpu() で守っているつもりの区間が普通に競合する。
+ *
+ * 実際、走行プログラムのログ用キュー (LOG.cpp) はこれで壊れていた。
+ * 生産側 (TRACER_TASK) と消費側 (LOG_TASK) が head/count を同時に触り、
+ * 消費側が同じ要素を延々と読み続けてテレメトリが更新されなくなる。
+ *
+ * ここでは 1 本のミューテックスで代用する。実機と同じ「他のタスクが
+ * 入ってこない」という性質だけを満たす。
+ * ＜制約＞ 入れ子で呼ばないこと。ロックしたまま待ちに入らないこと。
+ */
+static etsim_mutex_t g_cpu_lock;
+
 static void ensure_lock(void)
 {
     if (g_lock_ready) return;
     ETSIM_MUTEX_INIT(&g_lock);
+    ETSIM_MUTEX_INIT(&g_cpu_lock);
     ETSIM_COND_INIT(&g_cond);
     g_lock_ready = 1;
 }
@@ -462,10 +478,22 @@ ER get_tim(SYSTIM *p_systim)
     return E_OK;
 }
 
-ER loc_cpu(void) { return E_OK; }
-ER unl_cpu(void) { return E_OK; }
-ER dis_dsp(void) { return E_OK; }
-ER ena_dsp(void) { return E_OK; }
+ER loc_cpu(void)
+{
+    ensure_lock();
+    ETSIM_MUTEX_LOCK(&g_cpu_lock);
+    return E_OK;
+}
+
+ER unl_cpu(void)
+{
+    ETSIM_MUTEX_UNLOCK(&g_cpu_lock);
+    return E_OK;
+}
+
+/* ディスパッチ禁止も同じ扱いにする。狙いは「他のタスクを入れない」こと。 */
+ER dis_dsp(void) { return loc_cpu(); }
+ER ena_dsp(void) { return unl_cpu(); }
 
 bool_t sns_ker(void) { return FALSE; }
 bool_t sns_ctx(void) { return FALSE; }

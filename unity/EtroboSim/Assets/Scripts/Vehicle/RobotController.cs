@@ -309,17 +309,27 @@ namespace Etrobo.Sim
             // 車輪が回り出す。尾輪（PhysX の摩擦）から来る微小な力がこれで
             // 積み上がり、モータ指令 0 のまま走行体がじわじわ回り続けていた。
             // くっついている間は、接地点の速度を消す力だけを路面から受ける。
-            if (Mathf.Abs(motor.Omega) < WheelMotor.StictionOmega)
+            //
+            // 入る条件は「モータが回そうとしていないこと」だけで見る。
+            // 以前は打ち消す力 fStick を条件に混ぜていたが、fStick は車体の
+            // 速度で決まるので、走っている最中でも条件が成り立ってしまう。
+            // 一度入ると SetSolvedOmega(0) で ω を 0 に戻すため次も入る、と
+            // 自己保持して車輪が二度と回らなくなっていた。それでも車体には
+            // 力を加えるので走りはするが、**エンコーダが 0 のまま**になり、
+            // 走行プログラムの距離・座標がまったく進まなくなっていた
+            // （ライントレースはカラーセンサだけで成立するので走れてしまう）。
+            if (Mathf.Abs(motor.Omega) < WheelMotor.StictionOmega
+                && Mathf.Abs(motor.DriveTorque()) <= motor.StictionTorqueNm)
             {
+                // 路面が返せるのは静止摩擦ぶんまで。摩擦円と、車輪を回さずに
+                // 支えられるトルクの両方で頭打ちにする。
+                float fStickMax = Mathf.Min(maxTraction, motor.StictionTorqueNm / Mathf.Max(r, 1e-4f));
                 float fStick = Mathf.Clamp(-vLong * (Spec.MassKg * _wheelLoadFraction)
-                                           / Mathf.Max(dt, 1e-4f), -maxTraction, maxTraction);
+                                           / Mathf.Max(dt, 1e-4f), -fStickMax, fStickMax);
 
-                if (Mathf.Abs(motor.DriveTorque() - fStick * r) <= motor.StictionTorqueNm)
-                {
-                    _rb.AddForceAtPosition(forward * fStick + right * fLat, contact, ForceMode.Force);
-                    motor.SetSolvedOmega(0f, dt);
-                    return;
-                }
+                _rb.AddForceAtPosition(forward * fStick + right * fLat, contact, ForceMode.Force);
+                motor.SetSolvedOmega(0f, dt);
+                return;
             }
 
             // 前後: 車輪周速と接地点速度の差 (すべり速度) に比例した駆動力。
