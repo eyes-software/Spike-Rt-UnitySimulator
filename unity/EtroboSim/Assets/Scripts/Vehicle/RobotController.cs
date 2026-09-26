@@ -261,6 +261,13 @@ namespace Etrobo.Sim
             UpdateWheelVisuals();
         }
 
+        /// <summary>
+        /// 静止摩擦でくっついたままとみなす接地点の速度 [m/s]。
+        /// 指令 0 のときのじわじわ (数 mm/s 未満) は止めたいが、
+        /// 走っているときは必ず転がらせる。
+        /// </summary>
+        const float StictionContactMps = 0.005f;
+
         void StepWheel(WheelMotor motor, Transform wheel, float side, float dt, out bool grounded)
         {
             float r = Spec.WheelRadiusM;
@@ -318,7 +325,12 @@ namespace Etrobo.Sim
             // 力を加えるので走りはするが、**エンコーダが 0 のまま**になり、
             // 走行プログラムの距離・座標がまったく進まなくなっていた
             // （ライントレースはカラーセンサだけで成立するので走れてしまう）。
+            // 接地点が動いていないことも条件に入れる。車体が進んでいるのに
+            // 車輪を止めてしまうと、転がるはずの車輪が回らずエンコーダが
+            // 止まる。駆動トルクだけで見ていたときは、ライントレースで
+            // 内側の車輪の出力が小さくなったところで捕まっていた。
             if (Mathf.Abs(motor.Omega) < WheelMotor.StictionOmega
+                && Mathf.Abs(vLong) < StictionContactMps
                 && Mathf.Abs(motor.DriveTorque()) <= motor.StictionTorqueNm)
             {
                 // 路面が返せるのは静止摩擦ぶんまで。摩擦円と、車輪を回さずに
