@@ -283,6 +283,7 @@ namespace Etrobo.Sim
             {
                 // 浮いている間は路面反力なし
                 motor.Integrate(motorTorque, 0f, dt);
+                WatchStuckWheel(motor, side, false, false, 0f, motorTorque, 0f);
                 return;
             }
 
@@ -341,6 +342,7 @@ namespace Etrobo.Sim
 
                 _rb.AddForceAtPosition(forward * fStick + right * fLat, contact, ForceMode.Force);
                 motor.SetSolvedOmega(0f, dt);
+                WatchStuckWheel(motor, side, true, true, vLong, motor.DriveTorque(), 0f);
                 return;
             }
 
@@ -375,6 +377,63 @@ namespace Etrobo.Sim
             _rb.AddForceAtPosition(forward * (fLong + fRoll) + right * fLat, contact, ForceMode.Force);
 
             motor.SetSolvedOmega(omegaNext, dt);
+            WatchStuckWheel(motor, side, true, false, vLong, motor.DriveTorque(), omegaNext);
+        }
+
+        /*
+         * 「接地している車輪が止まったまま、車体だけ動いている」のを見張る。
+         *
+         * この状態になるとエンコーダが進まず、走行プログラムの距離・座標が
+         * 凍る。ライントレースはカラーセンサだけで成立してしまうので、走りは
+         * 一見成立し、症状が見えない。実際これで長く嵌まったので、起きた
+         * ことと、そのときの数字をその場で出す。
+         */
+        const float StuckOmegaLimit   = 0.5f;    // これ未満なら「止まっている」[rad/s]
+        const float StuckBodyMmps     = 50f;     // これ以上なら「車体は動いている」
+        const float StuckHoldSeconds  = 0.2f;    // これだけ続いたら報告する
+        const float StuckReportEvery  = 2.0f;    // 続く間の報告間隔 [s]
+
+        float _stuckSinceL = -1f, _stuckSinceR = -1f;
+        float _stuckReportedL = -99f, _stuckReportedR = -99f;
+
+        void WatchStuckWheel(WheelMotor motor, float side, bool grounded, bool stiction,
+                             float vLong, float driveTorque, float omegaNext)
+        {
+            bool left = side < 0f;
+            float bodyMmps = _rb.velocity.magnitude * CourseSpace.MToMm;
+            bool stuck = grounded && Mathf.Abs(motor.Omega) < StuckOmegaLimit
+                         && bodyMmps > StuckBodyMmps;
+
+            float now = Time.realtimeSinceStartup;
+            float since = left ? _stuckSinceL : _stuckSinceR;
+
+            if (!stuck)
+            {
+                if (left) _stuckSinceL = -1f; else _stuckSinceR = -1f;
+                return;
+            }
+
+            if (since < 0f)
+            {
+                if (left) _stuckSinceL = now; else _stuckSinceR = now;
+                return;
+            }
+
+            if (now - since < StuckHoldSeconds) return;
+
+            float reported = left ? _stuckReportedL : _stuckReportedR;
+            if (now - reported < StuckReportEvery) return;
+            if (left) _stuckReportedL = now; else _stuckReportedR = now;
+
+            Debug.LogWarning(
+                $"[Etsim] {(left ? "左" : "右")}車輪が回っていません"
+                + $"（{now - since:F1} 秒）。エンコーダが進まないので走行プログラムの"
+                + $"距離・座標が凍ります。"
+                + $" 経路={(stiction ? "静止摩擦" : "通常")}"
+                + $" ω={motor.Omega:F3}rad/s 次ω={omegaNext:F3}"
+                + $" 接地点速度={vLong * 1000f:F0}mm/s 車体速度={bodyMmps:F0}mm/s"
+                + $" 駆動トルク={driveTorque:F4}Nm 静止摩擦={motor.StictionTorqueNm:F4}Nm"
+                + $" 角度={motor.AngleDeg:F0}deg");
         }
 
         void StepArm(float dt)
