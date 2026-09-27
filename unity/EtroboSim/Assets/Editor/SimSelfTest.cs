@@ -56,6 +56,7 @@ namespace Etrobo.Sim.EditorTools
                 CheckLapTimer();
                 CheckUltrasonic();
                 CheckRobotSpecFiles();
+                CheckArmGrip();
                 CheckNansyo();
                 CheckNansyoLayout();
                 CheckNansyoJudge();
@@ -1254,6 +1255,57 @@ namespace Etrobo.Sim.EditorTools
                     centerMm + new Vector2(Mathf.Cos(a) * r, Mathf.Sin(a) * r)));
             }
             return sum / count;
+        }
+
+        /// <summary>
+        /// アームの爪とボトルの寸法。
+        ///
+        /// 実機ではキャリーボトルが半径ぶんほど爪に入り、そのまま運べる。
+        /// 力士ボトルは太くて入らない。爪は剛体の箱なので、入る深さは
+        /// 爪の幅だけで決まる。ここがずれると押し出しも運搬も変わる。
+        /// </summary>
+        static void CheckArmGrip()
+        {
+            Section("アームの爪");
+
+            var spec = new RobotSpec();
+            const float carry = 62f;     // キャリーボトル 300mL 丸
+            const float sumo = 68f;      // 力士ボトル 500mL 丸
+            float gap = spec.ArmGapMm;
+
+            Expect("キャリーボトルは入る", ArmGrip.Fits(carry, gap), true);
+            Expect("力士ボトルは入らない", ArmGrip.Fits(sumo, gap), false);
+
+            // 入る深さ。実機は「半径ぶんちょうどぐらい」。
+            float depth = ArmGrip.WedgeDepthMm(carry, gap);
+            if (depth < carry * 0.5f * 0.7f || depth > carry * 0.5f)
+                Fail($"キャリーボトルの入る深さ {depth:F1}mm が半径 {carry * 0.5f:F1}mm と合わない");
+            else
+                _report.AppendLine($"  ok   キャリーボトルの入る深さ = {depth:F1}mm");
+
+            // 止まる位置（爪先からボトルの軸まで）。前が正。
+            float carryStop = carry * 0.5f - depth;
+            float sumoStop = sumo * 0.5f - ArmGrip.WedgeDepthMm(sumo, gap);
+
+            Expect("キャリーボトルは抱える",
+                   ArmGrip.InCatchWindow(0f, carryStop, gap, spec.ArmGripCatchMm), true);
+            Expect("力士ボトルは抱えない",
+                   ArmGrip.InCatchWindow(0f, sumoStop, gap, spec.ArmGripCatchMm), false);
+            Expect("離れたら放す",
+                   ArmGrip.ShouldRelease(0f, spec.ArmGripReleaseMm + 1f, gap, spec.ArmGripReleaseMm), true);
+
+            // 保持の強さ。バックすれば置いていける程度に緩くする。
+            const float bottleKg = 0.105f;
+            const float floorFriction = 0.6f;
+            float slip = bottleKg * 9.81f * floorFriction;      // 床を引きずるのに要る力
+            float turn = bottleKg * 2f * 2f * 0.15f;            // 2rad/s で半径 150mm を回る
+            if (spec.ArmGripForceN >= slip)
+                Fail($"保持 {spec.ArmGripForceN:F2}N が強すぎる（床の摩擦 {slip:F2}N 以上だとバックしても付いてくる）");
+            else if (spec.ArmGripForceN <= turn)
+                Fail($"保持 {spec.ArmGripForceN:F2}N が弱すぎる（旋回に要る {turn:F2}N 以下）");
+            else
+                _report.AppendLine($"  ok   保持 {spec.ArmGripForceN:F2}N"
+                                   + $" (旋回 {turn:F2}N < 保持 < 引きずり {slip:F2}N)");
         }
 
         static void Section(string name) => _report.AppendLine($"\n[{name}]");

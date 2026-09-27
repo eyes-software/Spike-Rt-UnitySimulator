@@ -63,13 +63,46 @@ namespace Etrobo.Sim
 
         /// <summary>
         /// アームの爪 2 本の内側の間隔 [mm]。0 で爪の当たり判定を作らない。
-        /// 組立図どおりは 56mm だが、実機では爪がしなって開き、直径 62mm の
-        /// キャリーボトルが嵌まる。その開いた状態の幅を入れる。
+        ///
+        /// 組立図どおりは 56mm。実機では爪がしなって開くが、直径 62mm の
+        /// キャリーボトルが通り抜けるほどは開かず、半径ぶん（30mm ほど）
+        /// 入ったところで止まる。爪はしならない剛体で作るので、その
+        /// 「止まる深さ」が合う幅を入れる。
+        ///
+        /// 半径 R のボトルが幅 W の隙間に入ると、爪先の角で挟まって
+        ///   深さ = R - sqrt(R^2 - (W/2)^2)
+        /// で止まる。R=31, W=61 で 25mm、W=62 で素通り。
         /// </summary>
-        public float ArmGapMm = 62.5f;
+        public float ArmGapMm = 61.0f;
 
         /// <summary>爪 1 本の厚み [mm]。公式 LDraw モデルの実測。</summary>
         public float ArmProngThicknessMm = 8.0f;
+
+        /// <summary>
+        /// 爪の間に入ったボトルを引き寄せておく力の上限 [N]。0 で保持しない。
+        ///
+        /// 実機では爪がボトルを軽く抱えるので、旋回しても転がり出ない。
+        /// 剛体の爪だけだと爪先の 2 点で支えるだけになり、少し向きを変えた
+        /// だけで外れてしまうので、そのぶんをばねで補う。
+        ///
+        /// ただし「バックすれば置いていける」程度の緩さにする。ボトルは
+        /// 105g・床の摩擦係数 0.6 なので、動かすには 0.6N ほど要る。
+        /// それより十分小さくしておけば、走行体が下がってもボトルは床に
+        /// 残り、窓から外れて自然に離れる。旋回で必要な力は 0.05N 未満。
+        /// </summary>
+        public float ArmGripForceN = 0.25f;
+
+        /// <summary>
+        /// 保持を始める位置 [mm]。爪先の面からボトルの軸までの前後距離。
+        ///
+        /// キャリーボトルは爪先の 4.5mm 手前で止まる（実測）。力士ボトルは
+        /// 太いぶん手前の 13.4mm で止まるので、そこには届かない値にしておく。
+        /// 太さでも弾いているので二重の歯止めになる。
+        /// </summary>
+        public float ArmGripCatchMm = 12f;
+
+        /// <summary>ここまで爪先から離れたら放す [mm]。</summary>
+        public float ArmGripReleaseMm = 45f;
 
         [Header("タイヤ - 路面")]
         public float TractionFriction = 0.85f;      // 前後方向の静止摩擦係数
@@ -179,6 +212,9 @@ namespace Etrobo.Sim
             if (root.Has("arm_motor_mirrored"))   s.ArmMotorMirrored   = root["arm_motor_mirrored"].AsBool(s.ArmMotorMirrored);
             F("arm_gap_mm", ref s.ArmGapMm);
             F("arm_prong_thickness_mm", ref s.ArmProngThicknessMm);
+            F("arm_grip_force_n", ref s.ArmGripForceN);
+            F("arm_grip_catch_mm", ref s.ArmGripCatchMm);
+            F("arm_grip_release_mm", ref s.ArmGripReleaseMm);
 
             F("traction_friction", ref s.TractionFriction);
             F("lateral_friction", ref s.LateralFriction);

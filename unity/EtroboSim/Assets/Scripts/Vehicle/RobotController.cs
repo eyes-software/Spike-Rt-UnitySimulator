@@ -22,6 +22,8 @@ namespace Etrobo.Sim
 
         Rigidbody _rb;
         Transform _wheelL, _wheelR, _caster, _armPivot;
+        ArmGrip _armGrip;
+        BoxCollider _bodyBox;
 
         float _wheelLoadFraction = 0.4f;  // 片輪が支える重量比
         bool _groundedL, _groundedR;
@@ -123,6 +125,7 @@ namespace Etrobo.Sim
             var bodyGo = new GameObject("BodyCollider");
             bodyGo.transform.SetParent(transform, false);
             var box = bodyGo.AddComponent<BoxCollider>();
+            _bodyBox = box;
             box.size = new Vector3(Spec.BodyWidthMm, Spec.BodyHeightMm, Spec.BodyLengthMm) * CourseSpace.MmToM;
             box.center = new Vector3(
                 0f,
@@ -205,6 +208,7 @@ namespace Etrobo.Sim
                     new Vector3(90f, 10f, 70f) * mm, new Color32(200, 200, 205, 255));
             }
 
+            _armGrip = new ArmGrip(_rb, transform, Spec);
             BuildArmProngs();
         }
 
@@ -213,11 +217,15 @@ namespace Etrobo.Sim
         ///
         /// これが無いと、ボトルを押しているのは車体の平らな箱の前面になる。
         /// 実機では爪の間に入るかどうかで挙動が変わる（キャリーボトルは
-        /// 嵌まり、力士ボトルは太くて嵌まらない）ので、そこを再現する。
+        /// 半径ぶんほど入り、力士ボトルは太くてほとんど入らない）ので、
+        /// そこを再現する。
         ///
-        /// 隙間は「実機で嵌合したときに開く幅」を入れる。組立図どおりの
-        /// 56mm だと、実機では入るキャリーボトル (直径 62mm) が入らない。
-        /// 爪自体はしなって開くので、その開いた状態を固定の寸法で表す。
+        /// 隙間は「実機で爪がしなって開く幅」を入れる。組立図どおりの 56mm
+        /// より広く、キャリーボトルの直径 62mm よりは狭い。剛体の箱なので、
+        /// ボトルは爪先の角に挟まって、入った深さで止まる（ArmGrip.WedgeDepthMm）。
+        ///
+        /// 止まったあと抱えておくのは ArmGrip の仕事。爪だけだと角 2 点に
+        /// 乗っているだけで、旋回すると転がり出てしまう。
         ///
         /// 爪は _armPivot の下に付けるので、アームを上げ下げすると一緒に動く。
         /// </summary>
@@ -242,6 +250,7 @@ namespace Etrobo.Sim
             Vector3 size = new Vector3(thick, 39.2f, 71.2f) * mm;
             Vector3 center = new Vector3(0f, -16.0f, 32.0f) * mm;
 
+            BoxCollider left = null, right = null;
             foreach (float side in new[] { -1f, 1f })
             {
                 var go = new GameObject(side < 0f ? "ArmProngL" : "ArmProngR");
@@ -250,7 +259,38 @@ namespace Etrobo.Sim
                 box.size = size;
                 box.center = new Vector3(side * cx * mm, center.y, center.z);
                 box.material = mat;
+                if (side < 0f) left = box; else right = box;
             }
+
+            _armGrip.SetProngs(left, right);
+
+            // 車体の箱が爪の口をふさいでいたら、爪の根元まで切り詰める。
+            ClipBodyForArm(_armPivot.localPosition.z + center.z - size.z * 0.5f);
+        }
+
+        /// <summary>
+        /// 車体の当たり判定を、アームの根元より後ろまでに切り詰める。
+        ///
+        /// spec の body_length_mm は「アームまで含めた全長」で、ゲート通過や
+        /// ガレージの判定はこの寸法で見る（規約でも走行体全体が対象）。
+        /// ところが当たり判定の箱にまでこの全長を使うと、箱の前面が
+        /// 爪先とそろってしまい、爪の口が板でふさがれる。ボトルは爪に
+        /// 入る前に箱に当たって止まり、爪を付けた意味が無くなる。
+        ///
+        /// Re-HackS は全長 205.6mm・車軸から前へ 99.6mm で、これがちょうど
+        /// 爪先の位置。切り詰めないと 1mm も入らない。
+        /// </summary>
+        void ClipBodyForArm(float frontZ)
+        {
+            if (_bodyBox == null) return;
+
+            float front = _bodyBox.center.z + _bodyBox.size.z * 0.5f;
+            if (front <= frontZ) return;
+
+            float back = _bodyBox.center.z - _bodyBox.size.z * 0.5f;
+            _bodyBox.size = new Vector3(_bodyBox.size.x, _bodyBox.size.y, frontZ - back);
+            _bodyBox.center = new Vector3(_bodyBox.center.x, _bodyBox.center.y,
+                                          (frontZ + back) * 0.5f);
         }
 
         void AttachWheelVisual(Dictionary<string, LdrawMesh.Group> byName, string key, Transform wheel)
@@ -297,6 +337,7 @@ namespace Etrobo.Sim
             MotorLeft.Reset();
             MotorRight.Reset();
             MotorArm.Reset();
+            _armGrip?.Release();
         }
 
         /// <summary>SimManager が FixedUpdate から呼ぶ。物理の駆動はここだけ。</summary>
@@ -491,6 +532,9 @@ namespace Etrobo.Sim
 
             if (_armPivot != null)
                 _armPivot.localRotation = Quaternion.Euler(-MotorArm.AngleDeg, 0f, 0f);
+
+            // 爪に入ったボトルを緩く抱える。爪を動かしたあとに見る。
+            _armGrip?.Step(dt);
         }
 
         void UpdateWheelVisuals()
