@@ -427,12 +427,14 @@ namespace Etrobo.Sim
 
             Vector2 pos = Robot.TruthPositionMm;
             int passedBefore = Timer.CheckpointsPassed;
-            Timer.Step(pos, dt);
+
+            // ゲートもガレージも「走行体の一部」で判定する（規約 5.9 / 5.12 /
+            // 5.13 / 5.14）。中心 1 点ではないので、四隅を渡す。
+            NansyoJudge.Footprint(Robot.Spec, pos, Robot.TruthHeadingDeg, _footprint);
+            Timer.Step(_footprint, dt);
 
             bool finishedBefore = Timer.FinishEstablished;
-            Timer.StepFinish(
-                NansyoJudge.Footprint(Robot.Spec, pos, Robot.TruthHeadingDeg, _footprint),
-                IsFullyStopped(), dt);
+            Timer.StepFinish(_footprint, IsFullyStopped(), dt);
 
             // 走行プログラムが終わったところで難所の状態を残す。
             // 周回しないシナリオ（難所だけの試験など）はゴールを踏まないので、
@@ -580,7 +582,16 @@ namespace Etrobo.Sim
 
         /// <summary>パネルから 1 回押す。実機で人が指で押すのと同じ長さだけ押す。</summary>
         public void PressCenterButton() => _centerUntil = Time.realtimeSinceStartup + StartTapSeconds;
-        public void PressForceSensor() => _forceUntil = Time.realtimeSinceStartup + StartTapSeconds;
+        /// <summary>
+        /// フォースセンサを一瞬押す。スタート操作（規約 5.8）にあたるので、
+        /// 走行タイムの計測もここから始める（5.6.1 はスタート合図からだが、
+        /// シミュレータには審判がいないので操作の瞬間を合図とみなす）。
+        /// </summary>
+        public void PressForceSensor()
+        {
+            _forceUntil = Time.realtimeSinceStartup + StartTapSeconds;
+            Timer?.StartSignal();
+        }
 
         byte _buttonState;
         bool _forceHeld;

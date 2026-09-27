@@ -162,7 +162,8 @@ class Course:
             if "from" in g and "to" in g:
                 self.gates.append((g.get("id", "gate"),
                                    g.get("kind", "checkpoint"),
-                                   tuple(g["from"]), tuple(g["to"])))
+                                   tuple(g["from"]), tuple(g["to"]),
+                                   tuple(g.get("dir", (0.0, 0.0)))))
 
         start = data.get("start_pose", {})
         pos = start.get("position", [700, 300])
@@ -384,7 +385,13 @@ def _segments_intersect(p1, p2, q1, q2):
 
 
 class LapTimer:
-    """Unity 側 LapTimer と同じ規則。スタート -> 全チェックポイント -> ゴール。"""
+    """Unity 側 LapTimer と同じ規則。
+
+    走行体の一部が決められた向きでゲートラインを通過すると成立する
+    （規約 5.9 / 5.12 / 5.13）。ただしこちらは中心 1 点で見ている。
+    向きだけは見るようにしてある。チェックポイントは LAP ゲート到達の
+    条件ではない。
+    """
 
     def __init__(self, gates):
         self.gates = gates
@@ -410,9 +417,13 @@ class LapTimer:
         if (pos[0] - prev[0]) ** 2 + (pos[1] - prev[1]) ** 2 < 1e-6:
             return
 
-        for gid, kind, a, b in self.gates:
+        for gid, kind, a, b, d in self.gates:
             if not _segments_intersect(prev, pos, a, b):
                 continue
+            # 矢印と同じ側へ抜けたときだけ数える（dir が無ければ向き不問）
+            if d[0] or d[1]:
+                if (pos[0] - prev[0]) * d[0] + (pos[1] - prev[1]) * d[1] <= 0:
+                    continue
             self.last_gate = gid
             if kind == "start":
                 if not self.running:
@@ -421,12 +432,12 @@ class LapTimer:
                     self.elapsed = 0.0
                     self.passed.clear()
             elif kind == "goal":
-                # 全チェックポイントを通っていなければゴールとみなさない
-                if self.running and not self.finished and len(self.passed) >= self.total_checkpoints:
+                # 規約 5.13。チェックポイントを通ったかは条件ではない
+                if self.running and not self.finished:
                     self.finished = True
                     self.running = False
             else:
-                if self.running:
+                if self.running and not self.finished:
                     self.passed.add(gid)
 
 

@@ -100,6 +100,17 @@ namespace Etrobo.Sim
         public string Id = "gate";
         public Vector2 From, To;
         public GateKind Kind = GateKind.Checkpoint;
+
+        /// <summary>
+        /// 成立する通過の向き。規約の図に描かれている矢印にあたる
+        /// （5.9 スタート / 5.12 チェックポイント到達 / 5.13 LAP ゲート到達）。
+        /// ゼロのときは向きを問わない。
+        ///
+        /// 公式コースには入れてある。手書きのコースで入れ忘れたときに
+        /// 黙って厳しくなるより、向き不問のままのほうが安全なので既定は
+        /// ゼロにしている。
+        /// </summary>
+        public Vector2 Direction = Vector2.zero;
     }
 
     /// <summary>
@@ -302,7 +313,8 @@ namespace Etrobo.Sim
             {
                 Id = v["id"].AsString("gate"),
                 From = ParseVec2(v["from"], Vector2.zero),
-                To = ParseVec2(v["to"], Vector2.zero)
+                To = ParseVec2(v["to"], Vector2.zero),
+                Direction = ParseVec2(v["dir"], Vector2.zero)
             };
 
             switch ((v["kind"].AsString("checkpoint") ?? "checkpoint").ToLowerInvariant())

@@ -227,50 +227,84 @@ namespace Etrobo.Sim.EditorTools
             Expect("ラインまでの距離", field.DistanceToNearestLine(new Vector2(2000f, 400f)), 100f, 1f);
         }
 
+        /// <summary>
+        /// 計測ゲート。規約 5.9 / 5.12 / 5.13 はどれも「走行体の一部が矢印の
+        /// 示す方向でゲートラインを通過する」ことで成立する。中心 1 点でも
+        /// 向き不問でもないので、そこを確かめる。
+        /// </summary>
         static void CheckLapTimer()
         {
             Section("計測ゲート");
 
             var gates = new List<CourseGate>
             {
-                new CourseGate { Id = "start", Kind = GateKind.Start, From = new Vector2(0f, -50f), To = new Vector2(0f, 50f) },
-                new CourseGate { Id = "cp",    Kind = GateKind.Checkpoint, From = new Vector2(100f, -50f), To = new Vector2(100f, 50f) },
-                new CourseGate { Id = "goal",  Kind = GateKind.Goal, From = new Vector2(200f, -50f), To = new Vector2(200f, 50f) }
+                new CourseGate { Id = "start", Kind = GateKind.Start, From = new Vector2(0f, -50f), To = new Vector2(0f, 50f), Direction = Vector2.right },
+                new CourseGate { Id = "cp",    Kind = GateKind.Checkpoint, From = new Vector2(100f, -50f), To = new Vector2(100f, 50f), Direction = Vector2.right },
+                new CourseGate { Id = "goal",  Kind = GateKind.Goal, From = new Vector2(200f, -50f), To = new Vector2(200f, 50f), Direction = Vector2.right }
             };
 
             var timer = new LapTimer(gates);
             timer.Reset();
             Expect("チェックポイント総数", timer.CheckpointTotal, 1);
 
-            timer.Step(new Vector2(-10f, 0f), 0.01f);   // 初回は前回位置の記録だけ
-            timer.Step(new Vector2(10f, 0f), 0.01f);    // start を通過
-            Expect("計測開始", timer.Running, true);
+            timer.Step(Box(-60f), 0.01f);    // 初回は前回位置の記録だけ
+            timer.Step(Box(-10f), 0.01f);    // 中心はまだ手前。前端だけが越える
+            Expect("一部が越えれば成立", timer.Running, true);
 
-            timer.Step(new Vector2(110f, 0f), 0.01f);   // checkpoint
-            Expect("チェックポイント通過", timer.CheckpointsPassed, 1);
+            timer.Step(Box(60f), 0.01f);
+            timer.Step(Box(140f), 0.01f);    // チェックポイント
+            Expect("チェックポイント到達", timer.CheckpointsPassed, 1);
 
-            timer.Step(new Vector2(210f, 0f), 0.01f);   // goal
-            Expect("ゴール", timer.Finished, true);
-            // start を跨いだステップで計測が始まるので、goal までは 2 区間ぶん
-            Expect("経過時間", timer.ElapsedSeconds, 0.02f, 0.001f);
+            timer.Step(Box(240f), 0.01f);    // LAP ゲート
+            Expect("LAP ゲート到達", timer.Finished, true);
+            Expect("経過時間", timer.ElapsedSeconds, 0.03f, 0.001f);
 
-            // チェックポイントを迂回してゴール線だけ跨いだ場合はゴールと認めない。
+            // スタート合図があれば、そこから計る（規約 5.6.1）。
+            // ライン通過までの動き出しのぶんも走行タイムに入る。
+            var signalled = new LapTimer(gates);
+            signalled.Reset();
+            signalled.StartSignal();
+            signalled.Step(Box(-60f), 0.01f);
+            signalled.Step(Box(-55f), 0.01f);   // まだスタート線の手前
+            Expect("合図から計り始める", signalled.Timing, true);
+            signalled.Step(Box(-10f), 0.01f);   // ここでスタート成立
+            Expect("スタート成立", signalled.Running, true);
+            Expect("合図からの時間", signalled.ElapsedSeconds, 0.03f, 0.001f);
+
+            // 矢印と逆向きに通っても成立しない
+            var back = new LapTimer(gates);
+            back.Reset();
+            back.Step(Box(40f), 0.01f);
+            back.Step(Box(-40f), 0.01f);     // 逆向きにスタート線を横切る
+            Expect("逆向きは成立しない", back.Running, false);
+
+            // チェックポイントを通らなくても LAP ゲート到達は成立する (規約 5.13)。
             // ゴール線だけを長くして、cp の範囲外を通れるようにする。
             var detourGates = new List<CourseGate>
             {
-                new CourseGate { Id = "start", Kind = GateKind.Start, From = new Vector2(0f, -50f), To = new Vector2(0f, 50f) },
-                new CourseGate { Id = "cp",    Kind = GateKind.Checkpoint, From = new Vector2(100f, -50f), To = new Vector2(100f, 50f) },
-                new CourseGate { Id = "goal",  Kind = GateKind.Goal, From = new Vector2(200f, -50f), To = new Vector2(200f, 250f) }
+                new CourseGate { Id = "start", Kind = GateKind.Start, From = new Vector2(0f, -50f), To = new Vector2(0f, 50f), Direction = Vector2.right },
+                new CourseGate { Id = "cp",    Kind = GateKind.Checkpoint, From = new Vector2(100f, -50f), To = new Vector2(100f, 50f), Direction = Vector2.right },
+                new CourseGate { Id = "goal",  Kind = GateKind.Goal, From = new Vector2(200f, -50f), To = new Vector2(200f, 250f), Direction = Vector2.right }
             };
 
             var skipper = new LapTimer(detourGates);
             skipper.Reset();
-            skipper.Step(new Vector2(-10f, 0f), 0.01f);
-            skipper.Step(new Vector2(10f, 0f), 0.01f);    // start を通過
-            skipper.Step(new Vector2(10f, 200f), 0.01f);  // cp の範囲外へ迂回
-            skipper.Step(new Vector2(210f, 200f), 0.01f); // cp を通らずに goal 線だけ跨ぐ
-            Expect("チェックポイント未通過ならゴールにしない", skipper.Finished, false);
-            Expect("迂回中も計測は続く", skipper.Running, true);
+            skipper.Step(Box(-60f), 0.01f);
+            skipper.Step(Box(-10f), 0.01f);            // スタート
+            skipper.Step(Box(-10f, 200f), 0.01f);      // cp の範囲外へ迂回
+            skipper.Step(Box(240f, 200f), 0.01f);      // cp を通らずにゴール線を跨ぐ
+            Expect("チェックポイント無しでも LAP は成立", skipper.Finished, true);
+            Expect("通っていないチェックポイントは数えない", skipper.CheckpointsPassed, 0);
+        }
+
+        /// <summary>中心 (x, y) の 40mm 角。走行体の四隅の代わり。</summary>
+        static Vector2[] Box(float x, float y = 0f)
+        {
+            return new[]
+            {
+                new Vector2(x + 20f, y + 20f), new Vector2(x + 20f, y - 20f),
+                new Vector2(x - 20f, y + 20f), new Vector2(x - 20f, y - 20f)
+            };
         }
 
         /// <summary>
@@ -871,6 +905,25 @@ namespace Etrobo.Sim.EditorTools
             Expect("シート高さ", course.SheetHeightMm, 3640f, 1f);
             Expect("マットが緑", course.SheetColor.g > course.SheetColor.r
                                  && course.SheetColor.g > course.SheetColor.b, true);
+
+            // ゲートには規約の矢印 (dir) が入っていること。入れ忘れると
+            // 向き不問になり、逆走でもチェックポイントが成立してしまう。
+            // 向きは本線の進行方向、つまり from->to の右手法線になる。
+            foreach (var g in course.Gates)
+            {
+                if (g.Direction.sqrMagnitude < 1e-6f)
+                {
+                    Fail($"ゲート {g.Id} に dir が無い");
+                    continue;
+                }
+                Vector2 line = (g.To - g.From).normalized;
+                Vector2 rightNormal = new Vector2(line.y, -line.x);
+                if (Vector2.Dot(g.Direction.normalized, rightNormal) < 0.99f)
+                    Fail($"ゲート {g.Id} の dir が from->to の右手法線と違う"
+                         + $" ({g.Direction} / {rightNormal})");
+                else
+                    _report.AppendLine($"  ok   ゲート {g.Id} の向き = {g.Direction}");
+            }
 
             var field = new CourseField(course);
 

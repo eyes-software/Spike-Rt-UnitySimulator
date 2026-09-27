@@ -74,13 +74,19 @@ def nearest_s(pts, acc, target):
 
 
 def make_gate(gid, kind, p, direction, half_len):
-    """進行方向に直交する線分を作る。"""
+    """進行方向に直交する線分を作る。
+
+    dir は規約の図の矢印にあたる、成立する通過の向き
+    （5.9 スタート / 5.12 チェックポイント到達 / 5.13 LAP ゲート到達）。
+    本線の進行方向がそのまま矢印の向きになる。
+    """
     nx, ny = -direction[1], direction[0]
     return {
         "id": gid,
         "kind": kind,
         "from": [round(p[0] - nx * half_len, 1), round(p[1] - ny * half_len, 1)],
         "to": [round(p[0] + nx * half_len, 1), round(p[1] + ny * half_len, 1)],
+        "dir": [round(direction[0], 3), round(direction[1], 3)],
     }
 
 
