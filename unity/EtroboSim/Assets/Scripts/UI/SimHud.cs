@@ -147,7 +147,8 @@ namespace Etrobo.Sim
                                                 GUIStyle.none, GUI.skin.verticalScrollbar,
                                                 GUIStyle.none);
 
-            GUILayout.Label("ETロボコン シミュレータ", _title);
+            GUILayout.Label("ETロボコン シミュレータ "
+                            + $"<size=11><color=#8d97a5>{SimVersion.Full}</color></size>", _title);
             GUILayout.Space(4);
 
             DrawConnection();

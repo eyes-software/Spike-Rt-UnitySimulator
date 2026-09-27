@@ -54,6 +54,9 @@ namespace Etrobo.Sim
         {
             Application.runInBackground = true; // フォーカスを外しても走り続けさせる
 
+            // 版を最初に出す。ログや録画を後から突き合わせるのに要る。
+            Debug.Log(SimVersion.Banner);
+
             var course = LoadCourse();
             var spec = LoadRobotSpec();
 

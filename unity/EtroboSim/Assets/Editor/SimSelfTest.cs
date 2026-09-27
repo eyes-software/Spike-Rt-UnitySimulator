@@ -46,9 +46,11 @@ namespace Etrobo.Sim.EditorTools
             _failures.Clear();
             _report.Clear();
             _report.AppendLine("=== ETロボコンシミュレータ 自己テスト ===");
+            _report.AppendLine($"    {SimVersion.Full}  Unity {Application.unityVersion}");
 
             try
             {
+                CheckVersion();
                 CheckPacketLayout();
                 CheckArcGeometry();
                 CheckCourseLoading();
@@ -81,6 +83,19 @@ namespace Etrobo.Sim.EditorTools
         }
 
         // ---- 個別のテスト ------------------------------------------------
+
+        /// <summary>
+        /// 版の表示。走行ログがどの版で採られたものかを後から辿るための
+        /// 唯一の手がかりなので、空になっていないことだけは見ておく。
+        /// </summary>
+        static void CheckVersion()
+        {
+            Section("版");
+
+            Expect("版数が入っている", !string.IsNullOrEmpty(SimVersion.Number), true);
+            Expect("表示に版数が含まれる", SimVersion.Full.StartsWith(SimVersion.Number), true);
+            _report.AppendLine($"  ok   {SimVersion.Banner}");
+        }
 
         static void CheckPacketLayout()
         {
