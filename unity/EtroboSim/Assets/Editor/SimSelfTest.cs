@@ -364,7 +364,12 @@ namespace Etrobo.Sim.EditorTools
                 catch (Exception e) { Fail($"{name} を読めません: {e.Message}"); continue; }
 
                 // 公開資料で分かっている値。ここがずれていたら差し替え忘れ。
-                Expect($"{name} 車輪径", spec.WheelDiameterMm, 56f, 0.01f);
+                // 車輪径だけは Re-HackS で組立図と違う。LDraw のタイヤ部品は
+                // 公称の Φ56.0 だが、実機を測ると 57mm で、走行体プログラムの
+                // WHEEL_DIAMETER も 57.0。距離を突き合わせる相手は実機なので、
+                // 公称ではなく実測に合わせてある。
+                bool rehacks = name == "robot_rehacks_2026.json";
+                Expect($"{name} 車輪径", spec.WheelDiameterMm, rehacks ? 57f : 56f, 0.01f);
                 Expect($"{name} トレッドが正", spec.TreadMm > 0f, true);
                 Expect($"{name} 質量が正", spec.MassKg > 0f, true);
                 Expect($"{name} 左モータは鏡像", spec.LeftMotorMirrored, true);
@@ -373,7 +378,7 @@ namespace Etrobo.Sim.EditorTools
                 // 値を 1 つずつ動かして、結果が変わらないキー = 読まれていないキー を挙げる。
                 CheckNoUnusedKeys(name, File.ReadAllText(path));
 
-                if (name != "robot_rehacks_2026.json") continue;
+                if (!rehacks) continue;
 
                 // 公式 LDraw モデル (ReHackSM6.ldr) から読み取った寸法。
                 // 1 LDU = 0.4mm なので、これらは端数まで意味のある値。

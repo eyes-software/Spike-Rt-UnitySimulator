@@ -296,11 +296,25 @@ namespace Etrobo.Sim
         void AttachWheelVisual(Dictionary<string, LdrawMesh.Group> byName, string key, Transform wheel)
         {
             float mm = CourseSpace.MmToM;
-            if (byName.TryGetValue(key, out var g))
-                LdrawMesh.Attach(g, wheel, Vector3.zero);
-            else
+            if (!byName.TryGetValue(key, out var g))
+            {
                 RobotVisuals.CreateWheel(wheel, "WheelMesh",
                     Spec.WheelDiameterMm * mm, Spec.WheelWidthMm * mm);
+                return;
+            }
+
+            var t = LdrawMesh.Attach(g, wheel, Vector3.zero);
+
+            // 組立図のタイヤは公称の Φ56。spec の車輪径は実測の 57 なので、
+            // そのまま描くとタイヤが床から浮く。絵のほうを spec に合わせる。
+            // （転がりも接地も spec の半径で計算しているので、合わせる先はそちら）
+            if (t == null || g.Mesh == null) return;
+            Vector3 size = g.Mesh.bounds.size;
+            float drawn = Mathf.Max(size.y, size.z);
+            if (drawn <= 1e-5f) return;
+            float scale = Spec.WheelDiameterMm * mm / drawn;
+            if (Mathf.Abs(scale - 1f) > 0.001f)
+                t.localScale = new Vector3(1f, scale, scale);
         }
 
         void ComputeLoadDistribution()
