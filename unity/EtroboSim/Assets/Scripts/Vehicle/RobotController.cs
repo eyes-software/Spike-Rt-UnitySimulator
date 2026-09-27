@@ -204,6 +204,53 @@ namespace Etrobo.Sim
                 RobotVisuals.CreateBox(_armPivot, "Mesh", new Vector3(0f, 0f, 35f * mm),
                     new Vector3(90f, 10f, 70f) * mm, new Color32(200, 200, 205, 255));
             }
+
+            BuildArmProngs();
+        }
+
+        /// <summary>
+        /// アームの爪 2 本に当たり判定を付ける。
+        ///
+        /// これが無いと、ボトルを押しているのは車体の平らな箱の前面になる。
+        /// 実機では爪の間に入るかどうかで挙動が変わる（キャリーボトルは
+        /// 嵌まり、力士ボトルは太くて嵌まらない）ので、そこを再現する。
+        ///
+        /// 隙間は「実機で嵌合したときに開く幅」を入れる。組立図どおりの
+        /// 56mm だと、実機では入るキャリーボトル (直径 62mm) が入らない。
+        /// 爪自体はしなって開くので、その開いた状態を固定の寸法で表す。
+        ///
+        /// 爪は _armPivot の下に付けるので、アームを上げ下げすると一緒に動く。
+        /// </summary>
+        void BuildArmProngs()
+        {
+            if (_armPivot == null || Spec.ArmGapMm <= 0f) return;
+
+            float mm = CourseSpace.MmToM;
+            var mat = new PhysicMaterial("ArmProng")
+            {
+                dynamicFriction = 0.4f,
+                staticFriction = 0.5f,
+                bounciness = 0f,
+                bounceCombine = PhysicMaterialCombine.Minimum
+            };
+
+            // 公式 LDraw モデルの実測。走行体座標で z 28.4〜99.6mm、y -11.6〜27.6mm、
+            // 爪の厚み 8mm。_armPivot は (0, 24, 32)mm にあるのでその分を引く。
+            float inner = Spec.ArmGapMm * 0.5f;
+            float thick = Spec.ArmProngThicknessMm;
+            float cx = inner + thick * 0.5f;
+            Vector3 size = new Vector3(thick, 39.2f, 71.2f) * mm;
+            Vector3 center = new Vector3(0f, -16.0f, 32.0f) * mm;
+
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var go = new GameObject(side < 0f ? "ArmProngL" : "ArmProngR");
+                go.transform.SetParent(_armPivot, false);
+                var box = go.AddComponent<BoxCollider>();
+                box.size = size;
+                box.center = new Vector3(side * cx * mm, center.y, center.z);
+                box.material = mat;
+            }
         }
 
         void AttachWheelVisual(Dictionary<string, LdrawMesh.Group> byName, string key, Transform wheel)

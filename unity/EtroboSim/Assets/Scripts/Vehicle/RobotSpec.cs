@@ -61,6 +61,16 @@ namespace Etrobo.Sim
         public bool RightMotorMirrored = false;
         public bool ArmMotorMirrored = false;
 
+        /// <summary>
+        /// アームの爪 2 本の内側の間隔 [mm]。0 で爪の当たり判定を作らない。
+        /// 組立図どおりは 56mm だが、実機では爪がしなって開き、直径 62mm の
+        /// キャリーボトルが嵌まる。その開いた状態の幅を入れる。
+        /// </summary>
+        public float ArmGapMm = 62.5f;
+
+        /// <summary>爪 1 本の厚み [mm]。公式 LDraw モデルの実測。</summary>
+        public float ArmProngThicknessMm = 8.0f;
+
         [Header("タイヤ - 路面")]
         public float TractionFriction = 0.85f;      // 前後方向の静止摩擦係数
         public float LateralFriction = 1.10f;       // 横滑りに対する摩擦係数
@@ -167,6 +177,8 @@ namespace Etrobo.Sim
             if (root.Has("left_motor_mirrored"))  s.LeftMotorMirrored  = root["left_motor_mirrored"].AsBool(s.LeftMotorMirrored);
             if (root.Has("right_motor_mirrored")) s.RightMotorMirrored = root["right_motor_mirrored"].AsBool(s.RightMotorMirrored);
             if (root.Has("arm_motor_mirrored"))   s.ArmMotorMirrored   = root["arm_motor_mirrored"].AsBool(s.ArmMotorMirrored);
+            F("arm_gap_mm", ref s.ArmGapMm);
+            F("arm_prong_thickness_mm", ref s.ArmProngThicknessMm);
 
             F("traction_friction", ref s.TractionFriction);
             F("lateral_friction", ref s.LateralFriction);
