@@ -113,6 +113,7 @@ namespace Etrobo.Sim
             _idleSince = -1.0;
             _idleReports = 0;
             _idleNextReport = 1f;
+            _truthLoggedAt = -1.0;        // 真値ログも測り直す
             SimTimeSeconds = 0.0;
             OutOfCourse = false;
             _goalLogged = false;
@@ -720,6 +721,12 @@ namespace Etrobo.Sim
         Vector2 _truthLogFrom;
         float _truthLogFromHeadingDeg;
 
+        // 走った道のり。毎ステップ足す。走行体が報告してくる距離と
+        // 突き合わせるのはこちらで、始点からの直線距離ではない。
+        // コースを一周すると、道のりは直線距離の 2 倍近くになる。
+        Vector2 _truthPrev;
+        float _truthPathMm;
+
         void LogTruthPose(Vector2 pos, float headingDeg)
         {
             if (TruthLogSeconds <= 0f) return;
@@ -728,16 +735,22 @@ namespace Etrobo.Sim
             {
                 _truthLoggedAt = SimTimeSeconds;
                 _truthLogFrom = pos;
+                _truthPrev = pos;
+                _truthPathMm = 0f;
                 _truthLogFromHeadingDeg = headingDeg;
                 return;
             }
+
+            _truthPathMm += Vector2.Distance(pos, _truthPrev);
+            _truthPrev = pos;
 
             if (SimTimeSeconds - _truthLoggedAt < TruthLogSeconds) return;
             _truthLoggedAt = SimTimeSeconds;
 
             Debug.Log($"[Etsim] 真値 t={SimTimeSeconds:F0}s 位置 ({pos.x:F2}, {pos.y:F2})mm"
                       + $" 方位 {headingDeg:F4}°"
-                      + $" 累積 {Vector2.Distance(pos, _truthLogFrom):F2}mm"
+                      + $" 累積 {_truthPathMm:F2}mm"
+                      + $" (直線 {Vector2.Distance(pos, _truthLogFrom):F2}mm)"
                       + $" / {Mathf.DeltaAngle(_truthLogFromHeadingDeg, headingDeg):F4}°"
                       + $" 速度 {Robot.Body.velocity.magnitude * 1000f:F3}mm/s"
                       + $" 角速度 {Robot.Body.angularVelocity.y * Mathf.Rad2Deg:F5}deg/s");
