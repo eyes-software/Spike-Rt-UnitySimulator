@@ -39,8 +39,11 @@
   "arm_motor_mirrored": true,
   "_color_sensor_note": "カラーセンサはアーム側の部品。LDraw でアームの最下部（床から 8.9mm、車軸の前 28.7〜51.3mm）にあり、アームを上げると前を向く。下の color_sensor_x/height はアーム角 0（下げた状態）の値。",
   "color_sensor_on_arm": true,
-  "_arm_gear_note": "アームの減速比は LDraw から読めないので仮置き。走行体プログラムの上げ位置 170 カウントでアームが 85 度回り、カラーセンサがほぼ水平（床から 57mm、車軸の前 77mm）になる。実機で測った値に差し替えること。",
-  "arm_gear_ratio": 2.0,
+  "_arm_gear_note": "アームの減速比は組立図 HackSPi.mpd の歯車から。モータ軸の 20 歯 (18575) -> 中間軸の 28 歯 (46372)、同じ中間軸の 12 歯 (32270) -> アーム軸の 12 歯 (32270, 直角)。28/20 x 12/12 = 1.4。走行体プログラムの上げ位置 170 カウントでアームは約 121 度。",
+  "arm_gear_ratio": 1.4,
+  "_arm_range_note": "アームの可動範囲。スタート時の水平を 0 度として、下は 0 度・上は 121 度でストッパに当たる（実機で確認）。",
+  "arm_min_deg": 0,
+  "arm_max_deg": 121,
 
   "traction_friction": 0.85,
   "lateral_friction": 1.1,

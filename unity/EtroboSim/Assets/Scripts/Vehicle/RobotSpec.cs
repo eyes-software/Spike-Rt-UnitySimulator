@@ -95,6 +95,15 @@ namespace Etrobo.Sim
         public float ArmGearRatio = 1.0f;
 
         /// <summary>
+        /// アームが動ける範囲 [deg]（アームの角度。開始時の姿勢が 0）。
+        /// 実機はストッパや床に当たってそれ以上回らないが、ここではアームを
+        /// 無負荷のモータとして回すので、指定しないとどこまでも回る。
+        /// 既定は制限なし。
+        /// </summary>
+        public float ArmMinDeg = float.NegativeInfinity;
+        public float ArmMaxDeg = float.PositiveInfinity;
+
+        /// <summary>
         /// 爪の間に入ったボトルを引き寄せておく力の上限 [N]。0 で保持しない。
         ///
         /// 実機では爪がボトルを軽く抱えるので、旋回しても転がり出ない。
@@ -294,6 +303,8 @@ namespace Etrobo.Sim
             if (root.Has("color_sensor_on_arm"))
                 s.ColorSensorOnArm = root["color_sensor_on_arm"].AsBool(s.ColorSensorOnArm);
             F("arm_gear_ratio", ref s.ArmGearRatio);
+            F("arm_min_deg", ref s.ArmMinDeg);
+            F("arm_max_deg", ref s.ArmMaxDeg);
             F("arm_prong_thickness_mm", ref s.ArmProngThicknessMm);
             F("arm_grip_force_n", ref s.ArmGripForceN);
             F("arm_grip_catch_mm", ref s.ArmGripCatchMm);

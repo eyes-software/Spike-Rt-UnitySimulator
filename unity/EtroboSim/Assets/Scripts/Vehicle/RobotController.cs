@@ -569,12 +569,31 @@ namespace Etrobo.Sim
             // アームは接触物を持たない想定なので、無負荷のモータとして回すだけ
             float torque = MotorArm.ComputeTorque();
             MotorArm.Integrate(torque, 0f, dt);
+            ClampArmToRange();
 
             if (_armPivot != null)
                 _armPivot.localRotation = Quaternion.Euler(-ArmAngleDeg, 0f, 0f);
 
             // 爪に入ったボトルを緩く抱える。爪を動かしたあとに見る。
             _armGrip?.Step(dt);
+        }
+
+        // 動ける範囲の端に来たら、そこで止める（ストッパに当たったのと同じ）。
+        // 端から離れる向きには自由に回れる。
+        void ClampArmToRange()
+        {
+            float ratio = Mathf.Max(Spec.ArmGearRatio, 1e-3f);
+            float deg = ArmAngleDeg;
+            if (deg < Spec.ArmMinDeg)
+            {
+                MotorArm.AngleRad = Spec.ArmMinDeg * ratio * Mathf.Deg2Rad;
+                if (MotorArm.Omega < 0f) MotorArm.Omega = 0f;
+            }
+            else if (deg > Spec.ArmMaxDeg)
+            {
+                MotorArm.AngleRad = Spec.ArmMaxDeg * ratio * Mathf.Deg2Rad;
+                if (MotorArm.Omega > 0f) MotorArm.Omega = 0f;
+            }
         }
 
         void UpdateWheelVisuals()
