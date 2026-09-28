@@ -29,27 +29,59 @@ namespace Etrobo.Sim
             _spec = spec;
             _mount = mount;
             _rayMask = rayMask;
-            _beamDirsLocal = BuildBeam(spec.UltrasonicBeamDeg, 8);
+            _beamDirsLocal = BuildBeam(spec.UltrasonicBeamDeg, 8, 3);
         }
 
-        static Vector3[] BuildBeam(float halfAngleDeg, int ringCount)
+        /// <summary>
+        /// ビーム内に飛ばすレイの向き。中心と、半角を等分した同心円の上に置く。
+        ///
+        /// 縁だけだと、半角 35 度のような広いビームで「正面から 20 度ずれた物」が
+        /// どのレイにも当たらず、抜けてしまう。
+        /// </summary>
+        static Vector3[] BuildBeam(float halfAngleDeg, int perRing, int rings)
         {
-            var dirs = new Vector3[ringCount + 1];
-            dirs[0] = Vector3.forward;
+            var dirs = new System.Collections.Generic.List<Vector3> { Vector3.forward };
 
-            float tan = Mathf.Tan(halfAngleDeg * Mathf.Deg2Rad);
-            for (int i = 0; i < ringCount; i++)
+            for (int r = 1; r <= rings; r++)
             {
-                float a = i * 2f * Mathf.PI / ringCount;
-                // ビーム縁の円周上に等間隔で配置する
-                dirs[i + 1] = new Vector3(Mathf.Cos(a) * tan, Mathf.Sin(a) * tan, 1f).normalized;
+                float tan = Mathf.Tan(halfAngleDeg * r / rings * Mathf.Deg2Rad);
+                for (int i = 0; i < perRing; i++)
+                {
+                    // リングごとに半ピッチずらして、同じ方位に偏らせない
+                    float a = (i + 0.5f * (r % 2)) * 2f * Mathf.PI / perRing;
+                    dirs.Add(new Vector3(Mathf.Cos(a) * tan, Mathf.Sin(a) * tan, 1f).normalized);
+                }
             }
-            return dirs;
+            return dirs.ToArray();
         }
 
-        public void Reset() => DistanceMm = -1;
+        public void Reset()
+        {
+            DistanceMm = -1;
+            _sinceUpdate = float.MaxValue;
+        }
 
-        public void Step()
+        float _sinceUpdate = float.MaxValue;
+
+        /// <summary>
+        /// 1 ステップ進める。データシートの更新周期（100Hz）より細かく呼ばれても、
+        /// 値は周期ぶんだけ保持する。実機でも制御周期のほうが速いので、
+        /// 同じ値が数回続いて読める。
+        /// </summary>
+        public void Step(float dt)
+        {
+            if (_spec.UltrasonicUpdateHz > 0f)
+            {
+                _sinceUpdate += dt;
+                if (_sinceUpdate < 1f / _spec.UltrasonicUpdateHz) return;
+                _sinceUpdate = 0f;
+            }
+
+            Measure();
+        }
+
+        /// <summary>周期を無視していますぐ測る（掃引などの調べもの用）。</summary>
+        public void Measure()
         {
             float maxM = _spec.UltrasonicMaxMm * CourseSpace.MmToM;
             float cosLimit = Mathf.Cos(Mathf.Clamp(_spec.UltrasonicMaxIncidenceDeg, 0f, 89f) * Mathf.Deg2Rad);

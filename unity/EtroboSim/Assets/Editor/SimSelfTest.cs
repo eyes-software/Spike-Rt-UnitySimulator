@@ -365,14 +365,14 @@ namespace Etrobo.Sim.EditorTools
                 wall.transform.localScale = new Vector3(1f, 0.1f, 0.02f);
                 Physics.SyncTransforms();
 
-                model.Step();
+                model.Measure();
                 Expect("床だけなら検出しない", model.Present, false);
 
                 // 正面 300mm に高さ 100mm の壁を置く
                 wall.transform.position = new Vector3(0f, 0.05f, 0.300f);
                 Physics.SyncTransforms();
 
-                model.Step();
+                model.Measure();
                 Expect("正面の壁を検出する", model.Present, true);
                 // 壁は厚さ 20mm の板を中心 300mm に置いてあるので、手前の面は 290mm。
                 // ノイズの標準偏差は 3mm なので、余裕を見て 4 シグマで判定する。
@@ -382,7 +382,7 @@ namespace Etrobo.Sim.EditorTools
                 wall.transform.rotation = Quaternion.Euler(0f, 75f, 0f);
                 Physics.SyncTransforms();
 
-                model.Step();
+                model.Measure();
                 Expect("浅い角度の壁は返らない", model.Present, false);
             }
             finally
@@ -439,6 +439,26 @@ namespace Etrobo.Sim.EditorTools
                 Expect("Re-HackS 距離センサ前方", spec.UltrasonicXMm, 17.6f, 0.01f);
                 Expect("Re-HackS 距離センサ高さ", spec.UltrasonicHeightMm, 148.0f, 0.01f);
                 Expect("Re-HackS キャスタ位置", spec.CasterOffsetXMm, -86.4f, 0.01f);
+
+                // LEGO のデータシート（Technic 各センサ・モータ, 7.2V）。
+                // 組立図から出せない値はこちらに合わせる。
+                Expect("無負荷回転数 (データシート)", spec.NoLoadRpm, 175f, 0.1f);
+                Expect("ストールトルク (データシート 25Ncm)", spec.StallTorqueNm, 0.25f, 0.001f);
+                Expect("色を読める距離 (データシート 16mm)", spec.ColorSensorRangeMm, 16f, 0.1f);
+                Expect("距離センサ下限 (データシート 50mm)", spec.UltrasonicMinMm, 50f, 0.1f);
+                Expect("距離センサ上限 (データシート 2000mm)", spec.UltrasonicMaxMm, 2000f, 0.1f);
+                Expect("距離センサ入射角 (データシート ±35度)", spec.UltrasonicBeamDeg, 35f, 0.1f);
+                Expect("回転センサの刻み (360カウント/回転)", spec.EncoderStepDeg, 1f, 0.01f);
+                Expect("回転センサの遊び (データシート ±3度)", spec.EncoderSlackDeg, 3f, 0.01f);
+
+                // ビーム半角と入射角の上限は対で決める。半角 35 度だと下端のレイは
+                // 床の法線から 55 度で当たるので、上限がそれ以上だと床を拾い続ける。
+                if (spec.UltrasonicMaxIncidenceDeg >= 90f - spec.UltrasonicBeamDeg)
+                    Fail($"入射角の上限 {spec.UltrasonicMaxIncidenceDeg:F0}度 が"
+                         + $" ビーム半角 {spec.UltrasonicBeamDeg:F0}度 に対して緩い（床を拾う）");
+                else
+                    _report.AppendLine($"  ok   入射角の上限 {spec.UltrasonicMaxIncidenceDeg:F0}度"
+                                       + $" < 90-{spec.UltrasonicBeamDeg:F0}度 なので床は拾わない");
                 Expect("Re-HackS 全長", spec.BodyLengthMm, 205.6f, 0.01f);
                 Expect("Re-HackS 全幅", spec.BodyWidthMm, 136.0f, 0.01f);
                 Expect("Re-HackS 全高", spec.BodyHeightMm, 159.6f, 0.01f);

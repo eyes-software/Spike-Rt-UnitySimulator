@@ -144,6 +144,22 @@ namespace Etrobo.Sim
         public float ColorSensorHeightMm = 10f;
         /// <summary>計測スポット直径 [mm]。高さが上がるほど広がる。</summary>
         public float ColorSensorSpotMm = 12f;
+
+        /// <summary>
+        /// 色を読める距離 [mm]。データシートの "Optimal reading distance: 16 mm"
+        /// （Technic Color Sensor。色・反射光量とも同じ）。
+        /// ライントレースは床から 8.4mm なので常に範囲内。前を向かせて物の色を
+        /// 読むときは、この距離まで近づかないと何も返らない。
+        /// </summary>
+        public float ColorSensorRangeMm = 16f;
+
+        /// <summary>
+        /// 測定の更新周期 [Hz]。データシートの "Sensor sample rate: 100 Hz"。
+        /// 走行体プログラムの制御周期（4ms = 250Hz）より遅いので、
+        /// ライントレースは同じ反射光量を 2〜3 回続けて読むことになる。
+        /// 0 以下で毎ステップ更新（従来の挙動）。
+        /// </summary>
+        public float ColorSensorUpdateHz = 100f;
         /// <summary>反射光量に乗るノイズの標準偏差 [%]。</summary>
         public float ColorSensorNoise = 0.6f;
         /// <summary>1 次遅れの時定数 [s]。実機センサの応答遅れ。</summary>
@@ -156,11 +172,27 @@ namespace Etrobo.Sim
         [Header("超音波センサ")]
         public float UltrasonicXMm = 90f;
         public float UltrasonicHeightMm = 60f;
-        public float UltrasonicMinMm = 30f;
+        public float UltrasonicMinMm = 50f;
         public float UltrasonicMaxMm = 2000f;
-        /// <summary>ビームの広がり半角 [deg]。</summary>
-        public float UltrasonicBeamDeg = 12f;
-        public float UltrasonicNoiseMm = 3f;
+
+        /// <summary>
+        /// ビームの広がり半角 [deg]。データシートの "Entrance angle: +/- 35 degrees"。
+        /// 実機と同じで、正面から外れた物も拾う。
+        /// </summary>
+        public float UltrasonicBeamDeg = 35f;
+
+        /// <summary>
+        /// 距離の誤差 [mm]（1σ）。データシートは "50-2000 mm +/- 20 mm" で、
+        /// これを 3σ とみなした値。出力の刻みは 1mm（丸めで入れている）。
+        /// </summary>
+        public float UltrasonicNoiseMm = 6.7f;
+
+        /// <summary>
+        /// 測定の更新周期 [Hz]。データシートの "Sensor sample rate: 100 Hz"。
+        /// 走行体プログラムの制御周期（4ms）より遅いので、同じ値が数回続く。
+        /// 0 以下で毎ステップ更新（従来の挙動）。
+        /// </summary>
+        public float UltrasonicUpdateHz = 100f;
         /// <summary>
         /// 反射が返ってくる入射角の上限 [deg]。面の法線からこれ以上傾いて当たると
         /// 音波は鏡のように向こうへ反射して戻らないので、当たっていないものとして扱う。
@@ -168,7 +200,39 @@ namespace Etrobo.Sim
         /// これが無いと、広がったビームの下端が床に当たって常に一定の距離
         /// （取り付け高さ / tan(ビーム半角)）を返してしまう。
         /// </summary>
-        public float UltrasonicMaxIncidenceDeg = 60f;
+        /// ビーム半角とは対で決める値。半角 35 度だと下端のレイは水平から 35 度
+        /// 下を向き、床の法線から見た入射角は 55 度になるので、上限はそれ未満で
+        /// なければ床を拾い続ける。
+        ///
+        /// 35 度にしてあるのは、斜めの壁が返らなくなる角度を以前（半角 12 度 +
+        /// 上限 60 度 = 72 度）と揃えるため。ビームを広げたぶん上限を絞らないと、
+        /// 斜めの面まで拾うようになってしまう。
+        public float UltrasonicMaxIncidenceDeg = 35f;
+
+        [Header("回転センサ（モータ内蔵）")]
+        /// <summary>
+        /// 1 カウントの角度 [deg]。データシートの "Resolution: 360 counts per
+        /// revolution"。走行体プログラムへ返す角度はこの刻みに丸める。
+        /// 0 以下で刻まない（従来の挙動）。
+        /// </summary>
+        public float EncoderStepDeg = 1f;
+
+        /// <summary>
+        /// 回転センサの誤差 [deg]。データシートの "Accuracy: <= +/- 3 degrees"、
+        /// 中身は「センサの公差 ＋ ギアの遊び」。
+        ///
+        /// 白色雑音として足すのは誤り。カウント自体は再現性があって、効くのは
+        /// **向きを変えたとき**に遊びのぶんだけカウントが動かないこと。
+        /// ここではバックラッシュとして入れる（毎回の誤差は積み上がらない）。
+        /// 0 以下で遊び無し。
+        /// </summary>
+        public float EncoderSlackDeg = 3f;
+
+        /// <summary>
+        /// 回転センサの更新周期 [Hz]。データシートの "Update rate: 100 Hz"。
+        /// 0 以下で毎ステップ更新（従来の挙動）。
+        /// </summary>
+        public float EncoderUpdateHz = 100f;
 
         [Header("IMU")]
         public float GyroNoiseDps = 0.05f;
@@ -244,6 +308,8 @@ namespace Etrobo.Sim
             F("color_sensor_y_mm", ref s.ColorSensorYMm);
             F("color_sensor_height_mm", ref s.ColorSensorHeightMm);
             F("color_sensor_spot_mm", ref s.ColorSensorSpotMm);
+            F("color_sensor_range_mm", ref s.ColorSensorRangeMm);
+            F("color_sensor_update_hz", ref s.ColorSensorUpdateHz);
             F("color_sensor_noise", ref s.ColorSensorNoise);
             F("color_sensor_time_constant", ref s.ColorSensorTimeConstant);
             F("reflection_black", ref s.ReflectionBlack);
@@ -256,6 +322,10 @@ namespace Etrobo.Sim
             F("ultrasonic_beam_deg", ref s.UltrasonicBeamDeg);
             F("ultrasonic_noise_mm", ref s.UltrasonicNoiseMm);
             F("ultrasonic_max_incidence_deg", ref s.UltrasonicMaxIncidenceDeg);
+            F("ultrasonic_update_hz", ref s.UltrasonicUpdateHz);
+            F("encoder_step_deg", ref s.EncoderStepDeg);
+            F("encoder_slack_deg", ref s.EncoderSlackDeg);
+            F("encoder_update_hz", ref s.EncoderUpdateHz);
 
             F("gyro_noise_dps", ref s.GyroNoiseDps);
             F("gyro_bias_dps", ref s.GyroBiasDps);

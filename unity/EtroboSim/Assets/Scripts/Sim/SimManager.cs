@@ -175,7 +175,7 @@ namespace Etrobo.Sim
 
                 // autoSyncTransforms が false なので、レイキャストに姿勢を反映させる
                 Physics.SyncTransforms();
-                Ultrasonic.Step();
+                Ultrasonic.Measure();
 
                 Debug.Log($"[Etsim] 掃引CSV {h:F1},{Ultrasonic.DistanceMm}");
             }
@@ -422,7 +422,7 @@ namespace Etrobo.Sim
             if (simulatePhysicsManually) Physics.Simulate(dt);
 
             ColorSensor.Step(dt);
-            Ultrasonic.Step();
+            Ultrasonic.Step(dt);
             Imu.Step(dt);
 
             Vector2 pos = Robot.TruthPositionMm;
@@ -534,12 +534,12 @@ namespace Etrobo.Sim
                 AccelY = Imu.AccelMss.y,
                 AccelZ = Imu.AccelMss.z,
 
-                CountL = Mathf.RoundToInt(Robot.MotorLeft.AngleDeg),
-                CountR = Mathf.RoundToInt(Robot.MotorRight.AngleDeg),
-                CountA = Mathf.RoundToInt(Robot.MotorArm.AngleDeg),
-                SpeedL = Mathf.RoundToInt(Robot.MotorLeft.SpeedDps),
-                SpeedR = Mathf.RoundToInt(Robot.MotorRight.SpeedDps),
-                SpeedA = Mathf.RoundToInt(Robot.MotorArm.SpeedDps),
+                CountL = Robot.MotorLeft.ReportedCountDeg,
+                CountR = Robot.MotorRight.ReportedCountDeg,
+                CountA = Robot.MotorArm.ReportedCountDeg,
+                SpeedL = Robot.MotorLeft.ReportedSpeedDps,
+                SpeedR = Robot.MotorRight.ReportedSpeedDps,
+                SpeedA = Robot.MotorArm.ReportedSpeedDps,
                 PowerL = Robot.MotorLeft.AppliedPercent,
                 PowerR = Robot.MotorRight.AppliedPercent,
                 PowerA = Robot.MotorArm.AppliedPercent,

@@ -65,7 +65,7 @@ namespace Etrobo.Sim
                 float h = Mathf.Repeat(baseHeading + i * stepDeg + 180f, 360f) - 180f;
                 Manager.Robot.ResetPose(Manager.StartPositionMm, h);
                 Physics.SyncTransforms();
-                Manager.Ultrasonic.Step();
+                Manager.Ultrasonic.Measure();
 
                 DrawBeam(Manager.Ultrasonic.DistanceMm, hits);
                 captureFrame?.Invoke(i);

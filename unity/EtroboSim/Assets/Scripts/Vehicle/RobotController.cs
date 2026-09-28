@@ -382,6 +382,11 @@ namespace Etrobo.Sim
             StepWheel(MotorRight, _wheelR, +1f, dt, out _groundedR);
             StepArm(dt);
             UpdateWheelVisuals();
+
+            // 走行体プログラムが読む回転センサの値（刻み・遊び・更新周期）
+            MotorLeft.StepReporting(dt);
+            MotorRight.StepReporting(dt);
+            MotorArm.StepReporting(dt);
         }
 
         /// <summary>

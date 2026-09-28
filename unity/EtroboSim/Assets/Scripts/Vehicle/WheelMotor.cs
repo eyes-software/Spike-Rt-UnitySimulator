@@ -45,12 +45,22 @@ namespace Etrobo.Sim
             CommandPercent = 0;
             Mode = 0;
             HoldTargetRad = 0f;
+            ResetReporting();
         }
 
         public void ResetCount()
         {
             AngleRad = 0f;
             HoldTargetRad = 0f;
+            ResetReporting();
+        }
+
+        void ResetReporting()
+        {
+            _reportInit = false;
+            _sinceUpdate = float.MaxValue;
+            ReportedCountDeg = 0;
+            ReportedSpeedDps = 0;
         }
 
         /// <summary>モータ軸から見た積算角 [deg]。実機のエンコーダと同じ向き。</summary>
@@ -58,6 +68,57 @@ namespace Etrobo.Sim
 
         /// <summary>モータ軸から見た回転速度 [deg/s]。</summary>
         public float SpeedDps => Omega * Mathf.Rad2Deg * Polarity;
+
+        // ---- 回転センサ（走行体プログラムが読む値） --------------------------
+        //
+        // データシート: 360 カウント/回転、精度 ±3 度（センサの公差 ＋ ギアの遊び）、
+        // 更新 100Hz。軸の角度をそのまま渡すと、実機より良いエンコーダになる。
+
+        float _slackAngleDeg;      // 遊びの中でのセンサ側の位置
+        float _sinceUpdate = float.MaxValue;
+        bool _reportInit;
+
+        /// <summary>走行体プログラムへ返す積算角 [deg]。刻みと遊びが入る。</summary>
+        public int ReportedCountDeg { get; private set; }
+
+        /// <summary>走行体プログラムへ返す回転速度 [deg/s]。</summary>
+        public int ReportedSpeedDps { get; private set; }
+
+        /// <summary>
+        /// 回転センサの値を更新する。更新周期より細かく呼ばれても、周期ぶんは
+        /// 前の値を保持する。
+        ///
+        /// 遊びはバックラッシュとして入れる。軸が動く向きを変えると、遊びを
+        /// 詰めるまでセンサ側は動かない。白色雑音として足すと、差分を積む
+        /// オドメトリが際限なく荒れるので、そうはしない（実機のカウント自体は
+        /// 再現性がある）。
+        /// </summary>
+        public void StepReporting(float dt)
+        {
+            if (!_reportInit)
+            {
+                _slackAngleDeg = AngleDeg;
+                _reportInit = true;
+            }
+
+            if (_spec.EncoderUpdateHz > 0f)
+            {
+                _sinceUpdate += dt;
+                if (_sinceUpdate < 1f / _spec.EncoderUpdateHz) return;
+                _sinceUpdate = 0f;
+            }
+
+            float shaft = AngleDeg;
+            float slack = Mathf.Max(_spec.EncoderSlackDeg, 0f);
+            if (shaft > _slackAngleDeg + slack) _slackAngleDeg = shaft - slack;
+            else if (shaft < _slackAngleDeg - slack) _slackAngleDeg = shaft + slack;
+
+            float step = _spec.EncoderStepDeg;
+            ReportedCountDeg = step > 0f
+                ? Mathf.RoundToInt(Mathf.Round(_slackAngleDeg / step) * step)
+                : Mathf.RoundToInt(_slackAngleDeg);
+            ReportedSpeedDps = Mathf.RoundToInt(SpeedDps);
+        }
 
         /// <summary>車輪の前進を正とした積算角 [deg]。オドメトリの検算用。</summary>
         public float WheelAngleDeg => AngleRad * Mathf.Rad2Deg;

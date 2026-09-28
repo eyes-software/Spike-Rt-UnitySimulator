@@ -64,16 +64,40 @@ namespace Etrobo.Sim
             _initialized = false;
             _filteredReflection = 0f;
             _filteredColor = Color.white;
+            _sinceUpdate = float.MaxValue;
         }
 
+        float _sinceUpdate = float.MaxValue;
+
+        /// <summary>
+        /// 1 ステップ進める。データシートの更新周期（100Hz）ぶんは前の値を保つ。
+        /// 走行体プログラムの制御周期のほうが速いので、実機でも同じ値を
+        /// 続けて読むことになる。ライントレースの応答はここに効く。
+        /// </summary>
         public void Step(float dt)
+        {
+            if (_spec.ColorSensorUpdateHz > 0f)
+            {
+                _sinceUpdate += dt;
+                if (_sinceUpdate < 1f / _spec.ColorSensorUpdateHz) return;
+                dt = _sinceUpdate;          // 時定数はためた時間で進める
+                _sinceUpdate = 0f;
+            }
+
+            Measure(dt);
+        }
+
+        void Measure(float dt)
         {
             Color sum = Color.black;
             int hits = 0;
 
             float spotRadiusM = _spec.ColorSensorSpotMm * 0.5f * CourseSpace.MmToM;
-            // 取り付け高さより十分下まで見る。段差に乗ってもシート面を拾えるように余裕を持たせる
-            float rayLength = (_spec.ColorSensorHeightMm + 60f) * CourseSpace.MmToM;
+            // 色を読める距離。データシートの "Optimal reading distance: 16 mm"。
+            // 取り付け高さ (8.4mm) より長いので、下を向いている間は常に床に届く。
+            // 前を向かせたときは、この距離まで近づいた物だけが読める。
+            float rayLength = Mathf.Max(_spec.ColorSensorRangeMm,
+                                        _spec.ColorSensorHeightMm * 1.5f) * CourseSpace.MmToM;
 
             Vector3 down = -_mount.up;
             Vector3 right = _mount.right;
