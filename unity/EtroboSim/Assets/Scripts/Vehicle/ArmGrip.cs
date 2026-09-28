@@ -97,7 +97,7 @@ namespace Etrobo.Sim
 
             // 爪先の中央へ引き寄せる。ボトルを倒さないよう重心に掛ける。
             Vector3 err = -(dx * right + dz * fwd) * mm;
-            Vector3 vRel = Flat(_held.velocity - _body.GetPointVelocity(seat));
+            Vector3 vRel = Horizontal(_held.velocity - _body.GetPointVelocity(seat));
             Vector3 f = err * (_spec.ArmGripForceN / (FullForceErrorMm * mm))
                         - vRel * DampingNsPerM;
             f = Vector3.ClampMagnitude(f, _spec.ArmGripForceN);
@@ -121,6 +121,15 @@ namespace Etrobo.Sim
         {
             v.y = 0f;
             return v.sqrMagnitude < 1e-8f ? Vector3.zero : v.normalized;
+        }
+
+        // 水平成分だけ取り出す（長さはそのまま）。速度に Flat を使うと長さが 1 に
+        // そろってしまい、相対速度が常に 1 m/s として扱われる（減衰の項が常に
+        // 1.5N になり、保持力が常に上限に張り付いていた）。
+        static Vector3 Horizontal(Vector3 v)
+        {
+            v.y = 0f;
+            return v;
         }
 
         Rigidbody Find(Vector3 seat, Vector3 right, Vector3 fwd)
