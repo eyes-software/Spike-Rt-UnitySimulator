@@ -19,7 +19,7 @@ namespace Etrobo.Sim
     public static class SimVersion
     {
         /// <summary>手で上げる版数。git tag と対応させる。</summary>
-        public const string Number = "0.9.0";
+        public const string Number = "0.10.0";
 
         static string _full;
 
