@@ -209,6 +209,17 @@ namespace Etrobo.Sim
             // ラベル。養生テープなので不透明。色を見る課題なので高さを実物に合わせる。
             if (p.LabelHeightMm > 0f)
             {
+                // カラーセンサが横から見たときに、胴ではなくラベルの色を返せるよう
+                // 帯の範囲を覚えておく。当たり判定は胴のままで、増やさない。
+                var surface = go.GetComponent<PropSurface>();
+                if (surface != null)
+                {
+                    surface.HasLabel = true;
+                    surface.LabelColor = p.LabelColor;
+                    surface.LabelBottomMm = p.LabelBottomMm;
+                    surface.LabelTopMm = p.LabelBottomMm + p.LabelHeightMm;
+                }
+
                 float labelCentre = (p.LabelBottomMm + p.LabelHeightMm * 0.5f) * mm;
                 RobotVisuals.CreateCylinder(go.transform, "Label",
                     new Vector3(0f, labelCentre, 0f),

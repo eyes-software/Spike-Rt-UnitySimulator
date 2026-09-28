@@ -36,6 +36,15 @@ namespace Etrobo.Sim
         public float TruthSpeedMmps => Vector3.Dot(_rb.velocity, transform.forward) * CourseSpace.MToMm;
 
         public Rigidbody Body => _rb;
+
+        /// <summary>
+        /// アームの角度 [deg]。正でアームが上がる。
+        ///
+        /// 走行体プログラムへ返す角度 (AngleDeg) ではなく、実際の軸の角度
+        /// (WheelAngleDeg) を減速比で割る。取り付けが鏡像のときは両者の符号が
+        /// 逆になるので、ここを取り違えるとアームが逆に動く。
+        /// </summary>
+        public float ArmAngleDeg => MotorArm.WheelAngleDeg / Mathf.Max(Spec.ArmGearRatio, 1e-3f);
         public Transform ColorSensorMount { get; private set; }
         public Transform UltrasonicMount { get; private set; }
         public bool AnyWheelGrounded => _groundedL || _groundedR;
@@ -207,6 +216,18 @@ namespace Etrobo.Sim
                 RobotVisuals.CreateBox(_armPivot, "Mesh", new Vector3(0f, 0f, 35f * mm),
                     new Vector3(90f, 10f, 70f) * mm, new Color32(200, 200, 205, 255));
             }
+
+            // カラーセンサをアームへ移す。
+            //
+            // Re-HackS は公式 LDraw でカラーセンサがアームの部分品になっている
+            // （アームの最下部＝床から 8.9mm、車軸の前 28.7〜51.3mm の小さな塊が
+            //   それで、車体側には同じ高さの物が無い）。アームを上げると
+            // センサは前へ振り出され、ボトルのラベルを見る姿勢になる。
+            //
+            // 位置と向きは組み立て時のまま（アーム角 0 = 真下向き）で、
+            // 親だけ差し替える。以後はアームの角度に追従する。
+            if (Spec.ColorSensorOnArm && _armPivot != null && ColorSensorMount != null)
+                ColorSensorMount.SetParent(_armPivot, worldPositionStays: true);
 
             _armGrip = new ArmGrip(_rb, transform, Spec);
             BuildArmProngs();
@@ -545,7 +566,7 @@ namespace Etrobo.Sim
             MotorArm.Integrate(torque, 0f, dt);
 
             if (_armPivot != null)
-                _armPivot.localRotation = Quaternion.Euler(-MotorArm.AngleDeg, 0f, 0f);
+                _armPivot.localRotation = Quaternion.Euler(-ArmAngleDeg, 0f, 0f);
 
             // 爪に入ったボトルを緩く抱える。爪を動かしたあとに見る。
             _armGrip?.Step(dt);

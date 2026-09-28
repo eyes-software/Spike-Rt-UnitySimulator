@@ -34,7 +34,12 @@
 
   "left_motor_mirrored": true,
   "right_motor_mirrored": false,
-  "arm_motor_mirrored": false,
+  "_arm_mirror_note": "アームモータも鏡像付け。走行体プログラムが上げる向きへ命令したとき、false だとシミュレータでは逆に回り、目標位置に向かわず回り続ける。",
+  "arm_motor_mirrored": true,
+  "_color_sensor_note": "カラーセンサはアーム側の部品。LDraw でアームの最下部（床から 8.9mm、車軸の前 28.7〜51.3mm）にあり、アームを上げると前を向く。下の color_sensor_x/height はアーム角 0（下げた状態）の値。",
+  "color_sensor_on_arm": true,
+  "_arm_gear_note": "アームの減速比は LDraw から読めないので仮置き。走行体プログラムの上げ位置 170 カウントでアームが 85 度回り、カラーセンサがほぼ水平（床から 57mm、車軸の前 77mm）になる。実機で測った値に差し替えること。",
+  "arm_gear_ratio": 2.0,
 
   "traction_friction": 0.85,
   "lateral_friction": 1.1,

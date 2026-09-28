@@ -763,6 +763,7 @@ namespace Etrobo.Sim
                       + $" 累積 {_truthPathMm:F2}mm"
                       + $" (直線 {Vector2.Distance(pos, _truthLogFrom):F2}mm)"
                       + $" / {Mathf.DeltaAngle(_truthLogFromHeadingDeg, headingDeg):F4}°"
+                      + $" アーム {Robot.ArmAngleDeg:F1}°"
                       + $" 速度 {Robot.Body.velocity.magnitude * 1000f:F3}mm/s"
                       + $" 角速度 {Robot.Body.angularVelocity.y * Mathf.Rad2Deg:F5}deg/s");
 

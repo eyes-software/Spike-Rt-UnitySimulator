@@ -122,7 +122,7 @@ namespace Etrobo.Sim
             }
 
             var prop = hit.collider.GetComponentInParent<PropSurface>();
-            if (prop != null) return prop.SurfaceColor;
+            if (prop != null) return prop.ColorAt(hit.point.y);
 
             // 未知の物体は中間グレー扱い
             return new Color(0.5f, 0.5f, 0.5f, 1f);

@@ -79,6 +79,22 @@ namespace Etrobo.Sim
         public float ArmProngThicknessMm = 8.0f;
 
         /// <summary>
+        /// カラーセンサがアーム側に付いているか。
+        ///
+        /// Re-HackS は公式 LDraw でカラーセンサがアームの部分品になっていて、
+        /// アームを上げるとセンサが前を向く（下向き → 前向き）。ボトルの色を
+        /// 読むのはこの姿勢。false だと車体に固定で、いつも真下を向く。
+        /// </summary>
+        public bool ColorSensorOnArm = false;
+
+        /// <summary>
+        /// アームモータ 1 回転あたり、アームが何回転するかの逆数（減速比）。
+        /// モータの角度をこれで割ったものがアームの角度になる。
+        /// LDraw からは歯車比が読めないので、1 以外にするときは実機で測ること。
+        /// </summary>
+        public float ArmGearRatio = 1.0f;
+
+        /// <summary>
         /// 爪の間に入ったボトルを引き寄せておく力の上限 [N]。0 で保持しない。
         ///
         /// 実機では爪がボトルを軽く抱えるので、旋回しても転がり出ない。
@@ -211,6 +227,9 @@ namespace Etrobo.Sim
             if (root.Has("right_motor_mirrored")) s.RightMotorMirrored = root["right_motor_mirrored"].AsBool(s.RightMotorMirrored);
             if (root.Has("arm_motor_mirrored"))   s.ArmMotorMirrored   = root["arm_motor_mirrored"].AsBool(s.ArmMotorMirrored);
             F("arm_gap_mm", ref s.ArmGapMm);
+            if (root.Has("color_sensor_on_arm"))
+                s.ColorSensorOnArm = root["color_sensor_on_arm"].AsBool(s.ColorSensorOnArm);
+            F("arm_gear_ratio", ref s.ArmGearRatio);
             F("arm_prong_thickness_mm", ref s.ArmProngThicknessMm);
             F("arm_grip_force_n", ref s.ArmGripForceN);
             F("arm_grip_catch_mm", ref s.ArmGripCatchMm);
