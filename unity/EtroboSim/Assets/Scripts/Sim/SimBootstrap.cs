@@ -117,6 +117,8 @@ namespace Etrobo.Sim
 
             SetUpSonarSweepIfRequested();
 
+            SetUpOverlayIfRequested();
+
             // props は JSON の件数と**組み立てた件数**の両方を出す。
             // 片方だけだと、置いたはずの難所が出ていないときに切り分けられない。
             Debug.Log($"[Etsim] コース '{course.Name}' を構築しました "
@@ -234,6 +236,17 @@ namespace Etrobo.Sim
         ///   -etsimSonarSweep 2,20         20 秒かけて回す。画面で見える
         ///   -etsimSonarSweep 2,20,<出力先> さらにコマを連番 PNG で保存する
         /// </summary>
+        /// <summary>
+        /// コースの上に道すじを描く（見るだけ）。
+        ///   -etsimOverlay path.txt   書き方は PathOverlay を参照
+        /// </summary>
+        void SetUpOverlayIfRequested()
+        {
+            string path = CommandLineArg("-etsimOverlay");
+            if (string.IsNullOrEmpty(path)) return;
+            PathOverlay.Load(path, transform);
+        }
+
         void SetUpSonarSweepIfRequested()
         {
             string arg = CommandLineArg("-etsimSonarSweep");
