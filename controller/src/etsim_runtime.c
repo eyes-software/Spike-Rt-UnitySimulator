@@ -339,6 +339,24 @@ bool etsim_runtime_init(const etsim_config_t *cfg)
 
     printf("[etsim] 接続しました\n");
     g_initialized = 1;
+
+    /*
+     * ETSIM_RESET_ON_START=1 のときは、つないだ直後にシミュレータへリセットを頼む。
+     * 走行体・ボトル・計時が開始位置へ戻るので、Unity を起動し直さずに
+     * 同じ走行を何度も試せる。既定では頼まない（これまでと同じ）。
+     * リセットでモータの回転角も 0 に戻るので、走行プログラムが最初に
+     * 読む前に済むよう少し待つ。
+     */
+    if (env_u32("ETSIM_RESET_ON_START", 0)) {
+        /* 1 通だけだと、前の制御プロセスが切れた直後に捨てられることがあるので、
+         * 0.3 秒の間に何度か送る（シミュレータ側は何度受けても同じ位置へ戻すだけ） */
+        for (int i = 0; i < 10; i++) {
+            etsim_request_sim_reset();
+            send_command();
+            etsim_sleep_us(30000);
+        }
+        printf("[etsim] シミュレータをリセットしました\n");
+    }
     return true;
 }
 
