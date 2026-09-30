@@ -35,6 +35,34 @@ namespace Etrobo.Sim
         public bool Timing { get; private set; }
 
         public float ElapsedSeconds { get; private set; }
+
+        /// <summary>競技時間 [s]（規約の最大計測時間）。</summary>
+        public const float CompetitionLimitSeconds = 120f;
+
+        /// <summary>
+        /// スタートの合図からの経過時間 [s]。走行タイム（ElapsedSeconds）と違い、
+        /// ゴールしても止まらず、リセットまで数え続ける。
+        /// </summary>
+        public float CompetitionElapsedSeconds { get; private set; }
+
+        /// <summary>
+        /// 競技時間を計っている。スタートの合図で立ち、リセットでだけ下りる。
+        /// Timing は LAP ゲート（ゴール）で走行タイムを止めるために下りるので、
+        /// 経過時間と残り時間はこちらを見る。
+        /// </summary>
+        public bool CompetitionTiming { get; private set; }
+
+        /// <summary>
+        /// 競技時間を計っている間に、走行体の一部がガレージに入った。
+        /// 入った時点で経過時間と残り時間の数えを止める（出ても再開しない。リセットで戻る）。
+        /// </summary>
+        public bool GarageEntered { get; private set; }
+
+        /// <summary>競技の残り時間 [s]。120 秒から減り、0 で止まる。</summary>
+        public float RemainingSeconds => Mathf.Max(0f, CompetitionLimitSeconds - CompetitionElapsedSeconds);
+
+        /// <summary>残り時間が 0 になったか。</summary>
+        public bool TimeUp => CompetitionTiming && CompetitionElapsedSeconds >= CompetitionLimitSeconds;
         public int CheckpointsPassed => _passedCheckpoints.Count;
         public int CheckpointTotal { get; }
 
@@ -71,6 +99,12 @@ namespace Etrobo.Sim
 
             InGarage = Garage.TouchedBy(footprintMm);
 
+            if (InGarage && CompetitionTiming && !GarageEntered)
+            {
+                GarageEntered = true;
+                Debug.Log($"[Etsim] ガレージに入りました。経過 {CompetitionElapsedSeconds:F2} 秒・残り {RemainingSeconds:F2} 秒で数えを止めます");
+            }
+
             if (!InGarage || !fullyStopped)
             {
                 GarageStopSeconds = 0f;
@@ -101,6 +135,8 @@ namespace Etrobo.Sim
             if (Timing || Finished) return;
             Timing = true;
             ElapsedSeconds = 0f;
+            CompetitionTiming = true;
+            CompetitionElapsedSeconds = 0f;
         }
 
         public void Reset()
@@ -109,6 +145,9 @@ namespace Etrobo.Sim
             Finished = false;
             Timing = false;
             ElapsedSeconds = 0f;
+            CompetitionTiming = false;
+            CompetitionElapsedSeconds = 0f;
+            GarageEntered = false;
             _passedCheckpoints.Clear();
             _hasPrev = false;
             LastGateId = "-";
@@ -125,6 +164,13 @@ namespace Etrobo.Sim
         public void Step(Vector2[] footprintMm, float dt)
         {
             if (Timing && !Finished) ElapsedSeconds += dt;
+            if (CompetitionTiming && !GarageEntered)
+            {
+                bool wasUp = TimeUp;
+                CompetitionElapsedSeconds += dt;
+                if (!wasUp && TimeUp)
+                    Debug.Log($"[Etsim] 競技時間 {CompetitionLimitSeconds:F0} 秒が終わりました（残り時間 0）");
+            }
 
             if (footprintMm == null || footprintMm.Length < 4) return;
 
@@ -155,6 +201,11 @@ namespace Etrobo.Sim
                             {
                                 Timing = true;
                                 ElapsedSeconds = 0f;
+                            }
+                            if (!CompetitionTiming)
+                            {
+                                CompetitionTiming = true;
+                                CompetitionElapsedSeconds = 0f;
                             }
                         }
                         break;

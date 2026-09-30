@@ -274,6 +274,10 @@ namespace Etrobo.Sim
                               : "<color=#8d97a5>未スタート</color>";
             GUILayout.Label($"  タイム {t.ElapsedSeconds,7:F2} s   {timerState}"
                             + $"   フィニッシュ {FinishText(t)}", _label);
+            string remain = t.TimeUp ? $"<color=#fc8181>{t.RemainingSeconds,7:F2} s</color>"
+                          : $"{t.RemainingSeconds,7:F2} s";
+            GUILayout.Label($"  経過 {t.CompetitionElapsedSeconds,7:F2} s   残り {remain}"
+                            + (t.GarageEntered ? "   <color=#68d391>ガレージ IN で停止</color>" : ""), _label);
             GUILayout.Label($"  CP {t.CheckpointsPassed}/{t.CheckpointTotal}   直近ゲート {t.LastGateId}", _label);
             DrawStartPose();
 
