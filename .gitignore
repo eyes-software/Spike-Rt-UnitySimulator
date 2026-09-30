@@ -4,6 +4,7 @@ record/
 # ビルド生成物
 controller/build/
 controller/build_eyes/
+controller/build_rp/
 controller/bin/
 controller/bin_eyes/
 *.exe
