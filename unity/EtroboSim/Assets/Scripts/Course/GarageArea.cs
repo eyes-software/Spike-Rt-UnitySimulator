@@ -73,9 +73,36 @@ namespace Etrobo.Sim
             for (int i = 0; i < footprintMm.Length; i++)
                 if (Contains(footprintMm[i])) return true;
 
-            // 四隅がどれも外でも、ガレージをまたいで立っていれば「一部が中」。
-            // 枠が走行体より小さいことはないが、角だけ見て取りこぼさないようにする。
-            return Contains(CenterMm) && OverlapsRect(footprintMm);
+            // 四隅がどれも外でも、ガレージの辺をまたいで立っていれば「一部が中」。
+            // 走行体の外形（傾いた四角形）とガレージ（傾いていない四角形）が重なるかを
+            // 分離軸で見る。以前は外形に外接する傾いていない四角形で見ていたので、
+            // 斜めを向いているとガレージから離れていても重なると判定した。
+            return OverlapsRotated(footprintMm);
+        }
+
+        /// <summary>
+        /// 四隅（前左・前右・後左・後右の順）で表した走行体の外形が、ガレージの四角形と重なるか。
+        /// 分離軸定理：コースの x・y 軸と、外形の 2 辺の向きの計 4 軸のどれかで
+        /// 影が離れていれば重ならない。
+        /// </summary>
+        bool OverlapsRotated(Vector2[] c)
+        {
+            Vector2 half = SizeMm * 0.5f;
+            Vector2[] g =
+            {
+                CenterMm + new Vector2(-half.x, -half.y), CenterMm + new Vector2(half.x, -half.y),
+                CenterMm + new Vector2(half.x, half.y),   CenterMm + new Vector2(-half.x, half.y),
+            };
+            Vector2[] axes = { Vector2.right, Vector2.up, (c[1] - c[0]).normalized, (c[2] - c[0]).normalized };
+            foreach (var a in axes)
+            {
+                if (a.sqrMagnitude < 1e-6f) continue;
+                float cMin = float.MaxValue, cMax = float.MinValue, gMin = float.MaxValue, gMax = float.MinValue;
+                foreach (var p in c) { float d = Vector2.Dot(p, a); cMin = Mathf.Min(cMin, d); cMax = Mathf.Max(cMax, d); }
+                foreach (var p in g) { float d = Vector2.Dot(p, a); gMin = Mathf.Min(gMin, d); gMax = Mathf.Max(gMax, d); }
+                if (cMax < gMin || gMax < cMin) return false;
+            }
+            return true;
         }
 
         bool OverlapsRect(Vector2[] corners)
