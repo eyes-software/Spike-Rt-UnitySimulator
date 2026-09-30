@@ -182,6 +182,12 @@ namespace Etrobo.Sim
             CarryColor = color;
             if (_carryBottle == null) return;
 
+            // カラーセンサが読む色（PropSurface.LabelColor）も替える。見た目の
+            // マテリアルだけ替えると、画面では黄でもセンサには元の色（コース JSON の
+            // label_color）のまま見える。
+            var surface = _carryBottle.GetComponent<PropSurface>();
+            if (surface != null) surface.LabelColor = Rgb(color);
+
             var label = _carryBottle.Find("Label");
             if (label == null) return;
 
