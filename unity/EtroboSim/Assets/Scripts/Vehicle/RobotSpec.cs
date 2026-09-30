@@ -248,6 +248,16 @@ namespace Etrobo.Sim
         /// <summary>ジャイロのドリフト [deg/s]。積分誤差の再現用。</summary>
         public float GyroBiasDps = 0.02f;
         public float AccelNoise = 0.02f;
+        /// <summary>
+        /// 方位を実機（spike-rt の hub_imu_get_heading = pbio の 3D の方位）と同じく、3 軸のジャイロで
+        /// 姿勢を積み足し、前向きの軸を水平な面に投げ落とした向きで出す（1）。0 なら車体の上向きの軸まわりの
+        /// 回転だけを積み足す（従来。車体が傾いたまま曲がると、回った量を少なめに数える）。
+        /// </summary>
+        public float ImuHeading3D = 1f;
+        /// <summary>
+        /// 止まっている間にハブがジャイロの偏りを測って差し引く（pbio と同じ。1）。0 なら偏りを入れっぱなし（従来）。
+        /// </summary>
+        public float ImuBiasCalibration = 1f;
 
         [Header("電源")]
         public int BatteryMv = 8000;
@@ -341,6 +351,8 @@ namespace Etrobo.Sim
             F("gyro_noise_dps", ref s.GyroNoiseDps);
             F("gyro_bias_dps", ref s.GyroBiasDps);
             F("accel_noise", ref s.AccelNoise);
+            F("imu_heading_3d", ref s.ImuHeading3D);
+            F("imu_bias_calibration", ref s.ImuBiasCalibration);
 
             if (root.Has("battery_mv")) s.BatteryMv = root["battery_mv"].AsInt(s.BatteryMv);
             if (root.Has("visual_mesh")) s.VisualMeshFile = root["visual_mesh"].AsString(s.VisualMeshFile);
