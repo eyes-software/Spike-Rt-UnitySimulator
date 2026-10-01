@@ -39,6 +39,11 @@ namespace Etrobo.Sim
         float _headingOffset3D;                  // リセットしたときの方位
         bool _attValid;
 
+        // ---- 確かめ用：ノイズも偏りもない理想のジャイロで積み足した姿勢 ----
+        // 本当の姿勢との差は、角速度に現れない回転（物理エンジンが食い込みを押し戻すときなど）。
+        Quaternion _perfect = Quaternion.identity;
+        float _perfectLogged;     // 最後にログに出した差 [deg]
+
         // ---- ハブがする偏りの補正 ----
         Vector3 _biasEst;          // 推定した偏り（機体座標、Unity の軸）[deg/s]
         float _stillSeconds;       // 止まり続けている時間
@@ -109,6 +114,8 @@ namespace Etrobo.Sim
         void ResetAttitude()
         {
             _att = _body.rotation;
+            _perfect = _body.rotation;
+            _perfectLogged = 0f;
             _headingRotations = 0f;
             _prevProjection = Projection(_att);
             _headingOffset3D = _prevProjection;
@@ -138,6 +145,19 @@ namespace Etrobo.Sim
                 _biasEst += (meas - _biasEst) * k;
             }
             Vector3 cal = BiasCalibration ? meas - _biasEst : meas;
+
+            // 確かめ用：理想のジャイロ（真の角速度そのまま）で積み足した姿勢と、本当の姿勢の方位の差
+            float pr = omegaBody.magnitude;
+            if (pr > 1e-6f) _perfect = Normalize(_perfect * Quaternion.AngleAxis(pr * dt, omegaBody / pr));
+            float hidden = Mathf.DeltaAngle(Projection(_perfect), Projection(_body.rotation));
+            if (Mathf.Abs(hidden - _perfectLogged) > 0.2f)
+            {
+                Vector2 p = CourseSpace.ToCourseMm(_body.position);
+                Debug.Log($"[Etsim] ジャイロに映らない回転 累計 {hidden:+0.00;-0.00}°（{hidden - _perfectLogged:+0.00;-0.00}°）" +
+                          $" 位置 ({p.x:F0}, {p.y:F0})mm 方位 {CourseSpace.YawToHeading(_body.eulerAngles.y):F1}°" +
+                          $" 角速度 {omegaWorld.magnitude:F1}deg/s");
+                _perfectLogged = hidden;
+            }
 
             // Unity の機体座標を SPIKE ハブの向き (x=前, y=左, z=上) へ並べ替える
             GyroDps = new Vector3(cal.z, -cal.x, cal.y);
