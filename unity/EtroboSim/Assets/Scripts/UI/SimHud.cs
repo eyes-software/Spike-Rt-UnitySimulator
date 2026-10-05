@@ -126,7 +126,9 @@ namespace Etrobo.Sim
                           + $"（走行体は{(startsOnLeft ? "L" : "R")}コース側から出ます）");
             }
 
-            return startsOnLeft ? Screen.width - PanelWidth - PanelMargin : PanelMargin;
+            // Game ビューがパネルより狭いと、右に出すときに左端が画面の外へ出る。
+            // 左端を画面の中に留める（はみ出すのは右側にして、スクロールバーだけが隠れる）。
+            return startsOnLeft ? Mathf.Max(PanelMargin, Screen.width - PanelWidth - PanelMargin) : PanelMargin;
         }
 
         bool _sideLogged;
