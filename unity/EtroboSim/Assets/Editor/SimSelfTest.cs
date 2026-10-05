@@ -697,6 +697,19 @@ namespace Etrobo.Sim.EditorTools
                    NansyoController.Neighbour2(NansyoController.BottleColor.Blue, 1, 5),
                    new Vector2Int(1, 4));
 
+            // 1 つのゲートポジションに脚は 1 本だけ。外したゲートは数えない（呼ぶ側で渡さない）。
+            var cells = new Dictionary<NansyoController.BottleColor, Vector2Int>
+            {
+                { NansyoController.BottleColor.Red, new Vector2Int(2, 5) },
+                { NansyoController.BottleColor.Blue, new Vector2Int(5, 3) },
+                { NansyoController.BottleColor.Yellow, new Vector2Int(1, 2) },
+            };
+            Expect("既定の配置は重ならない", NansyoController.GateOverlap(cells), null);
+            cells[NansyoController.BottleColor.Yellow] = new Vector2Int(3, 5);   // 赤の相方 G3-5 に掛かる
+            Expect("相方の位置に掛かれば重なり", NansyoController.GateOverlap(cells) != null, true);
+            cells.Remove(NansyoController.BottleColor.Red);
+            Expect("相手を外せば重ならない", NansyoController.GateOverlap(cells), null);
+
             // 力士ボトルは「土俵の任意の位置」（規約 5.15.1）。
             // ただし底が土俵からはみ出さないところまでで頭打ちにしている。
             // 土俵 183.8mm / ボトル半径 34mm なので、動かせるのは 149.8mm まで。

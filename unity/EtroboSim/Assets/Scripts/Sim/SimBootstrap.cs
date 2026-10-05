@@ -160,10 +160,44 @@ namespace Etrobo.Sim
         ///   -etsimGates red=G2-5,blue=G5-3,yellow=G1-2
         ///   -etsimCarryColor red
         ///   -etsimRikishi 60,-40        （土俵の中心からのずれ [mm]）
+        ///   -etsimCarryOffset 20,0      （ピックアップポジションからのずれ [mm]）
+        ///   -etsimHide carry,rikishi,red,blue,yellow   （置かない物。gates で 3 つのゲート全部）
         /// 大会当日に配置パターンが出たあと、決まった配置で繰り返し走らせるため。
         /// </summary>
         void ApplyNansyoCommandLine()
         {
+            string carryOffset = CommandLineArg("-etsimCarryOffset");
+            if (!string.IsNullOrEmpty(carryOffset))
+            {
+                var xy = carryOffset.Split(',');
+                if (xy.Length == 2
+                    && float.TryParse(xy[0], out float cx) && float.TryParse(xy[1], out float cy)
+                    && Nansyo.SetCarryOffset(new Vector2(cx, cy)))
+                {
+                    var o = Nansyo.CarryOffsetMm;
+                    Debug.Log($"[Etsim] キャリーボトルをピックアップポジションから ({o.x:F0}, {o.y:F0})mm へ置きました");
+                }
+                else
+                {
+                    Debug.LogWarning($"[Etsim] -etsimCarryOffset {carryOffset} は置けませんでした");
+                }
+            }
+
+            string hide = CommandLineArg("-etsimHide");
+            if (!string.IsNullOrEmpty(hide))
+            {
+                foreach (var item in hide.Split(','))
+                {
+                    string name = item.Trim().ToLowerInvariant();
+                    if (name == "carry") Nansyo.SetCarryPlaced(false);
+                    else if (name == "rikishi") Nansyo.SetRikishiPlaced(false);
+                    else if (name == "gates") Nansyo.SetAllGatesPlaced(false);
+                    else if (TryParseColor(name, out var gc)) Nansyo.SetGatePlaced(gc, false);
+                    else Debug.LogWarning($"[Etsim] -etsimHide の '{item}' が分かりません"
+                                          + "（carry / rikishi / red / blue / yellow / gates）");
+                }
+            }
+
             string carry = CommandLineArg("-etsimCarryColor");
             if (!string.IsNullOrEmpty(carry) && TryParseColor(carry, out var cc))
                 Nansyo.SetCarryColor(cc);
@@ -552,6 +586,8 @@ namespace Etrobo.Sim
             public NansyoController.BottleColor Carry;
             public Vector2Int Red, Blue, Yellow;
             public Vector2 RikishiOffset;
+            public Vector2 CarryOffset;
+            public bool CarryPlaced, RikishiPlaced, RedPlaced, BluePlaced, YellowPlaced;
         }
 
         /// <summary>
@@ -607,6 +643,16 @@ namespace Etrobo.Sim
                 Yellow = Nansyo.GetGateCell(NansyoController.BottleColor.Yellow),
                 // 反対側のコースは鏡像なので、土俵の中の相対位置を保つには X を反転する
                 RikishiOffset = new Vector2(-Nansyo.RikishiOffsetMm.x, Nansyo.RikishiOffsetMm.y),
+                CarryOffset = new Vector2(-Nansyo.CarryOffsetMm.x, Nansyo.CarryOffsetMm.y),
+                // 外した物も外したまま移る
+                CarryPlaced = Nansyo.IsCarryPlaced || !Nansyo.HasCarryBottle,
+                RikishiPlaced = Nansyo.IsRikishiPlaced || !Nansyo.HasRikishiBottle,
+                RedPlaced = Nansyo.IsGatePlaced(NansyoController.BottleColor.Red)
+                            || !Nansyo.HasGate(NansyoController.BottleColor.Red),
+                BluePlaced = Nansyo.IsGatePlaced(NansyoController.BottleColor.Blue)
+                             || !Nansyo.HasGate(NansyoController.BottleColor.Blue),
+                YellowPlaced = Nansyo.IsGatePlaced(NansyoController.BottleColor.Yellow)
+                               || !Nansyo.HasGate(NansyoController.BottleColor.Yellow),
             };
         }
 
@@ -620,6 +666,12 @@ namespace Etrobo.Sim
             Nansyo.SetGateCell(NansyoController.BottleColor.Blue, _nextNansyo.Blue.x, _nextNansyo.Blue.y);
             Nansyo.SetGateCell(NansyoController.BottleColor.Yellow, _nextNansyo.Yellow.x, _nextNansyo.Yellow.y);
             Nansyo.SetRikishiOffset(_nextNansyo.RikishiOffset);
+            Nansyo.SetCarryOffset(_nextNansyo.CarryOffset);
+            Nansyo.SetCarryPlaced(_nextNansyo.CarryPlaced);
+            Nansyo.SetRikishiPlaced(_nextNansyo.RikishiPlaced);
+            Nansyo.SetGatePlaced(NansyoController.BottleColor.Red, _nextNansyo.RedPlaced);
+            Nansyo.SetGatePlaced(NansyoController.BottleColor.Blue, _nextNansyo.BluePlaced);
+            Nansyo.SetGatePlaced(NansyoController.BottleColor.Yellow, _nextNansyo.YellowPlaced);
             Debug.Log("[Etsim] 切り替え前の難所の配置を引き継ぎました");
         }
 

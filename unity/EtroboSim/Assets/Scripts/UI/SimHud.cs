@@ -63,8 +63,8 @@ namespace Etrobo.Sim
         const float PanelWidth = 430f;
         const float PanelHeight = 900f;
 
-        /// <summary>力士ボトルをボタン 1 回で動かす量 [mm]。</summary>
-        const float RikishiStepMm = 20f;
+        /// <summary>ボトルをボタン 1 回で動かす量 [mm]。</summary>
+        const float NansyoStepMm = 20f;
 
         const float PanelMargin = 12f;
 
@@ -338,7 +338,10 @@ namespace Etrobo.Sim
 
         /// <summary>
         /// 難所の設定。大会当日まで分からないもの（キャリーボトルの色、
-        /// ゲートの配置）をここから変える。
+        /// ゲートの配置）と、置くか置かないかをここから変える。
+        ///
+        /// 「有/無」は走行中に押してもよい。ボトルを一瞬だけ消す、ゲートを 1 つだけ
+        /// 外して走らせる、といった確かめ方のため。外した物は判定にも数えない。
         /// </summary>
         void DrawNansyo()
         {
@@ -350,18 +353,34 @@ namespace Etrobo.Sim
                 GUILayout.Label("<color=#fc8181>  ボトルとゲートがありません"
                                 + "（難所の入ったコースか確認してください）</color>", _label);
 
-
             if (Nansyo.HasCarryBottle)
             {
+                var o = Nansyo.CarryOffsetMm;
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("  キャリーボトル", _label, GUILayout.Width(110));
+                GUILayout.Label("  キャリーボトル", _label, GUILayout.Width(NameWidth));
+                bool on = PlacedToggle(Nansyo.IsCarryPlaced);
+                if (on != Nansyo.IsCarryPlaced) Nansyo.SetCarryPlaced(on);
+                GUILayout.Label($"({o.x,4:F0},{o.y,4:F0})mm", _label, GUILayout.Width(ValueWidth));
+
+                // ピックアップポジションからのずれ。規約では真上に置く。
+                var moved = StepButtons(o, NansyoStepMm);
+                if (moved.HasValue) Nansyo.SetCarryOffset(moved.Value);
+                if (GUILayout.Button("既定", _button, GUILayout.Width(38)))
+                    Nansyo.SetCarryOffset(Vector2.zero);
+                GUILayout.EndHorizontal();
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("", _label, GUILayout.Width(NameWidth));
                 foreach (var c in NansyoController.AllColors)
                 {
-                    bool on = Nansyo.CarryColor == c;
-                    string text = on ? "[" + NansyoController.NameOf(c) + "]" : NansyoController.NameOf(c);
-                    if (GUILayout.Button(text, _button, GUILayout.Width(38)) && !on)
+                    bool sel = Nansyo.CarryColor == c;
+                    string text = sel ? "[" + NansyoController.NameOf(c) + "]" : NansyoController.NameOf(c);
+                    if (GUILayout.Button(text, _button, GUILayout.Width(34)) && !sel)
                         Nansyo.SetCarryColor(c);
                 }
+                GUILayout.Space(8);
+                if (GUILayout.Button("置き直す", _button, GUILayout.Width(62)))
+                    Nansyo.RestoreCarryBottle();
                 GUILayout.EndHorizontal();
             }
 
@@ -369,52 +388,92 @@ namespace Etrobo.Sim
             {
                 var o = Nansyo.RikishiOffsetMm;
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("  力士ボトル", _label, GUILayout.Width(110));
-                GUILayout.Label($"({o.x,4:F0},{o.y,4:F0})mm", _label, GUILayout.Width(96));
+                GUILayout.Label("  力士ボトル", _label, GUILayout.Width(NameWidth));
+                bool on = PlacedToggle(Nansyo.IsRikishiPlaced);
+                if (on != Nansyo.IsRikishiPlaced) Nansyo.SetRikishiPlaced(on);
+                GUILayout.Label($"({o.x,4:F0},{o.y,4:F0})mm", _label, GUILayout.Width(ValueWidth));
 
                 // 規約 5.15.1 は「土俵の任意の位置」。土俵からはみ出す手前で止まる。
-                if (GUILayout.Button("X-", _button, GUILayout.Width(28)))
-                    Nansyo.SetRikishiOffset(o + new Vector2(-RikishiStepMm, 0f));
-                if (GUILayout.Button("X+", _button, GUILayout.Width(28)))
-                    Nansyo.SetRikishiOffset(o + new Vector2(RikishiStepMm, 0f));
-                if (GUILayout.Button("Y-", _button, GUILayout.Width(28)))
-                    Nansyo.SetRikishiOffset(o + new Vector2(0f, -RikishiStepMm));
-                if (GUILayout.Button("Y+", _button, GUILayout.Width(28)))
-                    Nansyo.SetRikishiOffset(o + new Vector2(0f, RikishiStepMm));
+                var moved = StepButtons(o, NansyoStepMm);
+                if (moved.HasValue) Nansyo.SetRikishiOffset(moved.Value);
                 if (GUILayout.Button("中央", _button, GUILayout.Width(38)))
                     Nansyo.SetRikishiOffset(Vector2.zero);
                 GUILayout.EndHorizontal();
-            }
-
-            if (!Nansyo.Layout.HasGrid) return;
-
-            foreach (var c in NansyoController.AllColors)
-            {
-                if (!Nansyo.HasGate(c)) continue;
-
-                var cell = Nansyo.GetGateCell(c);
-                var other = Nansyo.Neighbour(c, cell.x, cell.y);
-                string dir = NansyoController.IsHorizontal(c) ? "横" : "縦";
 
                 GUILayout.BeginHorizontal();
-                GUILayout.Label($"  {NansyoController.NameOf(c)}ゲート ({dir})", _label, GUILayout.Width(110));
-                GUILayout.Label($"G{cell.x}-{cell.y}+G{other.x}-{other.y}", _label, GUILayout.Width(96));
-
-                // 向きは色で決まっているので、動かすのは片方の位置だけ
-                if (GUILayout.Button("X-", _button, GUILayout.Width(28)))
-                    Nansyo.SetGateCell(c, Mathf.Max(1, cell.x - 1), cell.y);
-                if (GUILayout.Button("X+", _button, GUILayout.Width(28)))
-                    Nansyo.SetGateCell(c, Mathf.Min(NansyoLayout.GridSize, cell.x + 1), cell.y);
-                if (GUILayout.Button("Y-", _button, GUILayout.Width(28)))
-                    Nansyo.SetGateCell(c, cell.x, Mathf.Max(1, cell.y - 1));
-                if (GUILayout.Button("Y+", _button, GUILayout.Width(28)))
-                    Nansyo.SetGateCell(c, cell.x, Mathf.Min(NansyoLayout.GridSize, cell.y + 1));
+                GUILayout.Label("", _label, GUILayout.Width(NameWidth));
+                if (GUILayout.Button("置き直す", _button, GUILayout.Width(62)))
+                    Nansyo.RestoreRikishiBottle();
                 GUILayout.EndHorizontal();
+            }
+
+            if (Nansyo.Layout.HasGrid)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("  ゲート", _label, GUILayout.Width(NameWidth));
+                if (GUILayout.Button("全部 有", _button, GUILayout.Width(56)))
+                    Nansyo.SetAllGatesPlaced(true);
+                if (GUILayout.Button("全部 無", _button, GUILayout.Width(56)))
+                    Nansyo.SetAllGatesPlaced(false);
+                GUILayout.EndHorizontal();
+
+                foreach (var c in NansyoController.AllColors)
+                {
+                    if (!Nansyo.HasGate(c)) continue;
+
+                    var cell = Nansyo.GetGateCell(c);
+                    var other = Nansyo.Neighbour(c, cell.x, cell.y);
+                    string dir = NansyoController.IsHorizontal(c) ? "横" : "縦";
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label($"  {NansyoController.NameOf(c)}ゲート ({dir})", _label, GUILayout.Width(NameWidth));
+                    bool on = PlacedToggle(Nansyo.IsGatePlaced(c));
+                    if (on != Nansyo.IsGatePlaced(c)) Nansyo.SetGatePlaced(c, on);
+                    GUILayout.Label($"G{cell.x}-{cell.y}+G{other.x}-{other.y}", _label, GUILayout.Width(ValueWidth));
+
+                    // 向きは色で決まっているので、動かすのは片方の位置だけ
+                    if (GUILayout.Button("X-", _button, GUILayout.Width(StepWidth)))
+                        Nansyo.SetGateCell(c, Mathf.Max(1, cell.x - 1), cell.y);
+                    if (GUILayout.Button("X+", _button, GUILayout.Width(StepWidth)))
+                        Nansyo.SetGateCell(c, Mathf.Min(NansyoLayout.GridSize, cell.x + 1), cell.y);
+                    if (GUILayout.Button("Y-", _button, GUILayout.Width(StepWidth)))
+                        Nansyo.SetGateCell(c, cell.x, Mathf.Max(1, cell.y - 1));
+                    if (GUILayout.Button("Y+", _button, GUILayout.Width(StepWidth)))
+                        Nansyo.SetGateCell(c, cell.x, Mathf.Min(NansyoLayout.GridSize, cell.y + 1));
+                    GUILayout.EndHorizontal();
+                }
+
+                string overlap = Nansyo.GateOverlap();
+                if (overlap != null)
+                    GUILayout.Label($"<color=#fc8181>  {overlap}（規約では 1 つのゲートポジションに脚は 1 本）</color>", _label);
             }
 
             DrawJudge();
             GUILayout.Label("<color=#8d97a5>  通過順は 赤→青→黄（表 5-2）。"
-                            + $"力士は土俵内 {Nansyo.RikishiRangeMm:F0}mm まで</color>", _label);
+                            + $"力士は土俵内 {Nansyo.RikishiRangeMm:F0}mm まで。"
+                            + "「無」にした物は判定に数えない</color>", _label);
+        }
+
+        // 難所の行の列幅。パネルの幅（430px）にスクロールバーを除いて収まるようにしてある。
+        const float NameWidth = 96f;
+        const float ValueWidth = 84f;
+        const float StepWidth = 26f;
+
+        /// <summary>置く・外すのボタン。押すたびに入れ替わる。</summary>
+        bool PlacedToggle(bool on)
+        {
+            return GUILayout.Toggle(on, on ? "有" : "無", _button, GUILayout.Width(30));
+        }
+
+        /// <summary>X-/X+/Y-/Y+ の 4 つ。押されたらずらした値を返す。</summary>
+        Vector2? StepButtons(Vector2 o, float step)
+        {
+            Vector2? r = null;
+            if (GUILayout.Button("X-", _button, GUILayout.Width(StepWidth))) r = o + new Vector2(-step, 0f);
+            if (GUILayout.Button("X+", _button, GUILayout.Width(StepWidth))) r = o + new Vector2(step, 0f);
+            if (GUILayout.Button("Y-", _button, GUILayout.Width(StepWidth))) r = o + new Vector2(0f, -step);
+            if (GUILayout.Button("Y+", _button, GUILayout.Width(StepWidth))) r = o + new Vector2(0f, step);
+            return r;
         }
 
         /// <summary>

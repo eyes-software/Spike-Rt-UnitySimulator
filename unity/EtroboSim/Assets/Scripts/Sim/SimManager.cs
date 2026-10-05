@@ -775,7 +775,7 @@ namespace Etrobo.Sim
 
         static void LogBottle(string name, Transform bottle)
         {
-            if (bottle == null) return;
+            if (bottle == null || !bottle.gameObject.activeSelf) return;
 
             var rb = bottle.GetComponent<Rigidbody>();
             Vector2 p = CourseSpace.ToCourseMm(bottle.position);

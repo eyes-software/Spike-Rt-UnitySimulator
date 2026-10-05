@@ -69,6 +69,10 @@ namespace Etrobo.Sim
         readonly Dictionary<NansyoController.BottleColor, GateCrossing> _crossings =
             new Dictionary<NansyoController.BottleColor, GateCrossing>();
 
+        /// <summary>ゲートごとの、最後に見た置き場所（中心 x, y と脚の並ぶ向き x, y）。</summary>
+        readonly Dictionary<NansyoController.BottleColor, Vector4> _gatePoses =
+            new Dictionary<NansyoController.BottleColor, Vector4>();
+
         /// <summary>ETラリーの途中経過。純粋な値にしてあるので単体で試せる。</summary>
         public struct RallyState
         {
@@ -122,6 +126,7 @@ namespace Etrobo.Sim
             DeliveredZone = null;
             _rally = default;
             _crossings.Clear();
+            _gatePoses.Clear();
         }
 
         void FixedUpdate()
@@ -146,6 +151,12 @@ namespace Etrobo.Sim
             {
                 PushedOut = false;
                 SumoReason = "力士ボトルがありません";
+                return;
+            }
+            if (!Nansyo.IsRikishiPlaced)
+            {
+                PushedOut = false;
+                SumoReason = "力士ボトルを外してあります";
                 return;
             }
 
@@ -193,6 +204,11 @@ namespace Etrobo.Sim
             if (bottle == null)
             {
                 DeliveryReason = "キャリーボトルがありません";
+                return;
+            }
+            if (!Nansyo.IsCarryPlaced)
+            {
+                DeliveryReason = "キャリーボトルを外してあります";
                 return;
             }
 
@@ -306,12 +322,29 @@ namespace Etrobo.Sim
                 var gate = Nansyo.GetGate(color);
                 if (gate == null) continue;
 
-                if (!_crossings.TryGetValue(color, out var c))
-                    c = new GateCrossing { Side = 0, Valid = true };
+                // 外してあるゲートは通れない。途中経過も捨てて、置き直したときに
+                // 外す前のどちら側にいたかで通過を数えないようにする。
+                if (!Nansyo.IsGatePlaced(color))
+                {
+                    _crossings.Remove(color);
+                    continue;
+                }
 
                 // ゲートの面。脚はローカル X に並び、通り抜けるのはローカル Z 方向。
                 Vector2 center = CourseSpace.ToCourseMm(gate.position);
                 Vector2 axis = CourseSpace.FlattenToCourse(gate.right).normalized;
+
+                // 置き場所を変えたら途中経過を捨てる。走行体の上へゲートを動かしたときに、
+                // 面の反対側へ移ったのを「通った」と数えないため。
+                var pose = new Vector4(center.x, center.y, axis.x, axis.y);
+                if (!_gatePoses.TryGetValue(color, out var last) || (last - pose).sqrMagnitude > 1e-4f)
+                {
+                    _crossings.Remove(color);
+                    _gatePoses[color] = pose;
+                }
+
+                if (!_crossings.TryGetValue(color, out var c))
+                    c = new GateCrossing { Side = 0, Valid = true };
 
                 if (c.Step(center, axis, Nansyo.GateInnerWidthMm * 0.5f, RobotFootprint()))
                     OnGatePassed(color);

@@ -42,8 +42,15 @@ namespace Etrobo.Sim
         float _rikishiRadiusMm = 34f;
         float _carryRadiusMm = 31f;
         float _gateInnerWidthMm = 232f;
-        Vector2 _carryHomeMm;
+        Vector2 _carryBaseMm;
+        Vector2 _carryOffsetMm;
         Vector2 _rikishiOffsetMm;
+
+        /// <summary>キャリーボトルを置く場所。コース JSON の位置（ピックアップポジション）にずれを足したもの。</summary>
+        Vector2 CarryHomeMm => _carryBaseMm + _carryOffsetMm;
+
+        /// <summary>キャリーボトルをピックアップポジションからずらせる範囲 [mm]。</summary>
+        public const float CarryRangeMm = 250f;
 
         /// <summary>成立判定が使うもの。</summary>
         public Transform CarryBottle => _carryBottle;
@@ -60,8 +67,20 @@ namespace Etrobo.Sim
         public bool HasRikishiBottle => _rikishiBottle != null;
         public bool HasGate(BottleColor c) => _gates.ContainsKey(c);
 
+        // Has* はコースに物があるか、Is*Placed はいま置いてあるか（パネルで外していないか）。
+        // 外した物は GameObject ごと止めるので、見た目・当たり・超音波・カラーセンサの
+        // どれからも消える。
+        public bool IsCarryPlaced => IsActive(_carryBottle);
+        public bool IsRikishiPlaced => IsActive(_rikishiBottle);
+        public bool IsGatePlaced(BottleColor c) => _gates.TryGetValue(c, out var t) && IsActive(t);
+
+        static bool IsActive(Transform t) => t != null && t.gameObject.activeSelf;
+
         /// <summary>力士ボトルの置き場所。土俵の中心からのずれ [mm]（コース座標）。</summary>
         public Vector2 RikishiOffsetMm => _rikishiOffsetMm;
+
+        /// <summary>キャリーボトルの置き場所。ピックアップポジションからのずれ [mm]（コース座標）。</summary>
+        public Vector2 CarryOffsetMm => _carryOffsetMm;
 
         /// <summary>力士ボトルを土俵の中で動かせる範囲 [mm]。</summary>
         public float RikishiRangeMm =>
@@ -81,7 +100,7 @@ namespace Etrobo.Sim
             {
                 if (p.Id == "carry_bottle")
                 {
-                    _carryHomeMm = p.Position;
+                    _carryBaseMm = p.Position;
                     _carryRadiusMm = p.Size.x * 0.5f;
                 }
                 if (p.Id != "rikishi_bottle") continue;
@@ -153,10 +172,106 @@ namespace Etrobo.Sim
         /// </summary>
         public void RestoreBottles()
         {
+            RestoreRikishiBottle();
+            RestoreCarryBottle();
+        }
+
+        /// <summary>力士ボトルだけ決めた場所へ立て直す。外してあっても位置は戻しておく。</summary>
+        public void RestoreRikishiBottle()
+        {
             if (_rikishiBottle != null && Layout != null)
                 PlaceBottle(_rikishiBottle, Layout.DohyoCenter + _rikishiOffsetMm);
+        }
+
+        /// <summary>キャリーボトルだけ決めた場所へ立て直す。</summary>
+        public void RestoreCarryBottle()
+        {
             if (_carryBottle != null)
-                PlaceBottle(_carryBottle, _carryHomeMm);
+                PlaceBottle(_carryBottle, CarryHomeMm);
+        }
+
+        /// <summary>
+        /// キャリーボトルをピックアップポジションからずらして置く。指定はずれ [mm]。
+        /// 規約ではピックアップポジションの上に置くが、置き方のばらつきや
+        /// 取り損ねに強いかを確かめるため。±CarryRangeMm で頭打ちにする。
+        /// </summary>
+        public bool SetCarryOffset(Vector2 offsetMm)
+        {
+            if (_carryBottle == null) return false;
+
+            _carryOffsetMm = new Vector2(Mathf.Clamp(offsetMm.x, -CarryRangeMm, CarryRangeMm),
+                                         Mathf.Clamp(offsetMm.y, -CarryRangeMm, CarryRangeMm));
+            PlaceBottle(_carryBottle, CarryHomeMm);
+            return true;
+        }
+
+        // -- 置く・外す -------------------------------------------------------
+
+        public void SetCarryPlaced(bool on) => SetPlaced(_carryBottle, on, "キャリーボトル");
+        public void SetRikishiPlaced(bool on) => SetPlaced(_rikishiBottle, on, "力士ボトル");
+
+        public void SetGatePlaced(BottleColor c, bool on)
+        {
+            if (_gates.TryGetValue(c, out var t)) SetPlaced(t, on, NameOf(c) + "ゲート");
+        }
+
+        public void SetAllGatesPlaced(bool on)
+        {
+            foreach (var c in AllColors) SetGatePlaced(c, on);
+        }
+
+        /// <summary>
+        /// 物を置く・外す。走行中に押してもよい。
+        ///
+        /// 外すと GameObject ごと止めるので、見た目・当たり・超音波・カラーセンサの
+        /// どれからも消える。置き直すと**外した時の場所**に戻る（走行中にボトルを
+        /// 一瞬だけ消して戻す、という使い方のため）。決めた場所へ戻すのは「置き直す」。
+        /// 走行体と重なる場所に戻すと物理エンジンが押し出すので、走行体が弾かれる。
+        /// </summary>
+        static void SetPlaced(Transform t, bool on, string name)
+        {
+            if (t == null || t.gameObject.activeSelf == on) return;
+
+            t.gameObject.SetActive(on);
+            if (on)
+            {
+                var rb = t.GetComponent<Rigidbody>();
+                if (rb != null && !rb.isKinematic)
+                {
+                    rb.velocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                }
+            }
+            Debug.Log($"[Etsim] {name}を{(on ? "置きました" : "外しました")}");
+        }
+
+        /// <summary>
+        /// 置いてあるゲートの脚が、同じゲートポジションに重なっていないか。
+        /// 規約では 1 つのゲートポジションに脚は 1 本だけ。重なっていれば説明を返す。
+        /// </summary>
+        public string GateOverlap()
+        {
+            var cells = new Dictionary<BottleColor, Vector2Int>();
+            foreach (var c in AllColors)
+                if (IsGatePlaced(c)) cells[c] = _gateCells[c];
+            return GateOverlap(cells);
+        }
+
+        /// <summary>インスタンスが無くても引けるようにしたもの（自己テスト用）。</summary>
+        public static string GateOverlap(IReadOnlyDictionary<BottleColor, Vector2Int> cells)
+        {
+            var owner = new Dictionary<Vector2Int, BottleColor>();
+            foreach (var kv in cells)
+            {
+                var a = kv.Value;
+                foreach (var p in new[] { a, Neighbour2(kv.Key, a.x, a.y) })
+                {
+                    if (owner.TryGetValue(p, out var other))
+                        return $"{NameOf(other)}と{NameOf(kv.Key)}のゲートが G{p.x}-{p.y} で重なっています";
+                    owner[p] = kv.Key;
+                }
+            }
+            return null;
         }
 
         /// <summary>
