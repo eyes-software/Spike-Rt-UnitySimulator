@@ -129,6 +129,14 @@ namespace Etrobo.Sim
         /// <summary>ここまで爪先から離れたら放す [mm]。</summary>
         public float ArmGripReleaseMm = 45f;
 
+        /// <summary>
+        /// 走行体が後ろへ動いている間の保持力の割合（ArmGripForceN に掛ける）。
+        ///
+        /// 押している間（前へ進む・止まっている）は ArmGripForceN のまま抱え、下がるときは弱くして、
+        /// ボトルを床に残して離れやすくする。実機の爪は、下がるとボトルから外れる向きにしなるため。
+        /// </summary>
+        public float ArmGripBackwardScale = 0.25f;
+
         [Header("タイヤ - 路面")]
         public float TractionFriction = 0.85f;      // 前後方向の静止摩擦係数
         public float LateralFriction = 1.10f;       // 横滑りに対する摩擦係数
@@ -319,6 +327,7 @@ namespace Etrobo.Sim
             F("arm_grip_force_n", ref s.ArmGripForceN);
             F("arm_grip_catch_mm", ref s.ArmGripCatchMm);
             F("arm_grip_release_mm", ref s.ArmGripReleaseMm);
+            F("arm_grip_backward_scale", ref s.ArmGripBackwardScale);
 
             F("traction_friction", ref s.TractionFriction);
             F("lateral_friction", ref s.LateralFriction);

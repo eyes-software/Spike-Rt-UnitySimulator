@@ -96,14 +96,30 @@ namespace Etrobo.Sim
             }
 
             // 爪先の中央へ引き寄せる。ボトルを倒さないよう重心に掛ける。
+            // 走行体が後ろへ動いている間は弱くする（ArmGripBackwardScale）。押している間は抱えたまま、
+            // 下がるときはボトルを床に残して離れやすくする。
+            float scale = GripScale(Vector3.Dot(_body.velocity, fwd), _spec.ArmGripBackwardScale);
+            float maxN = _spec.ArmGripForceN * scale;
             Vector3 err = -(dx * right + dz * fwd) * mm;
             Vector3 vRel = Horizontal(_held.velocity - _body.GetPointVelocity(seat));
-            Vector3 f = err * (_spec.ArmGripForceN / (FullForceErrorMm * mm))
-                        - vRel * DampingNsPerM;
-            f = Vector3.ClampMagnitude(f, _spec.ArmGripForceN);
+            Vector3 f = (err * (_spec.ArmGripForceN / (FullForceErrorMm * mm))
+                         - vRel * DampingNsPerM) * scale;
+            f = Vector3.ClampMagnitude(f, maxN);
 
             _held.AddForce(f, ForceMode.Force);
             _body.AddForce(-f, ForceMode.Force);
+        }
+
+        /// <summary>走行体の前後の速さがこれより遅く後ろへ動いていたら「下がっている」とみなす [m/s]。</summary>
+        const float BackingMps = 0.01f;
+
+        /// <summary>
+        /// 保持力に掛ける割合。走行体が後ろへ動いている（前後の速さが -BackingMps より遅い）間は
+        /// backwardScale、それ以外（前へ進む・止まっている・その場で回る）は 1。
+        /// </summary>
+        public static float GripScale(float forwardSpeedMps, float backwardScale)
+        {
+            return forwardSpeedMps < -BackingMps ? Mathf.Clamp01(backwardScale) : 1f;
         }
 
         /// <summary>爪先 2 本の中央。口の入口の真ん中にあたる。</summary>

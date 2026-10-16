@@ -1412,6 +1412,11 @@ namespace Etrobo.Sim.EditorTools
             else
                 _report.AppendLine($"  ok   保持 {spec.ArmGripForceN:F2}N"
                                    + $" (旋回 {turn:F2}N < 保持 < 引きずり {slip:F2}N)");
+
+            // 下がっている間は弱くする（押している間は抱えたまま、下がるときは置いていきやすく）
+            Expect("前へ進む間は保持そのまま", ArmGrip.GripScale(0.2f, spec.ArmGripBackwardScale), 1f);
+            Expect("止まっている間も保持そのまま", ArmGrip.GripScale(0f, spec.ArmGripBackwardScale), 1f);
+            Expect("下がる間は 1/4", ArmGrip.GripScale(-0.1f, spec.ArmGripBackwardScale), 0.25f);
         }
 
         static void Section(string name) => _report.AppendLine($"\n[{name}]");
