@@ -159,8 +159,11 @@ namespace Etrobo.Sim
                 _perfectLogged = hidden;
             }
 
-            // Unity の機体座標を SPIKE ハブの向き (x=前, y=左, z=上) へ並べ替える
-            GyroDps = new Vector3(cal.z, -cal.x, cal.y);
+            // Unity の機体座標を SPIKE ハブの向き (x=前, y=左, z=上) へ並べ替える。
+            // Unity は左手系、ハブは右手系なので、回転の向き（角速度）は 3 軸とも符号が逆になる
+            // （加速度のようなふつうのベクトルは並べ替えだけでよい）。実機のログで、右へ曲がると
+            // Z が負になる（方位の増え方と逆）ことを確かめた。以前は符号を変えておらず、Z が実機と逆だった。
+            GyroDps = new Vector3(-cal.z, cal.x, -cal.y);
 
             // --- 方位 ---
             // 従来の出し方：上向きの軸まわりの回転だけを積み足す
